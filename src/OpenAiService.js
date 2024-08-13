@@ -6,10 +6,12 @@ export default class OpenAiService {
     #model = "gpt-3.5-turbo-instruct";
 
     constructor() {
-        const apiKey = getConfigVariable("OPENAI_API_KEY")
+        const apiKey = getConfigVariable("OPENAI_API_KEY");
+        const baseURL = getConfigVariable("BASE_URL");
 
         const configuration = new Configuration({
-            apiKey
+            apiKey,
+            baseUrl
         });
 
         this.#openAi = new OpenAIApi(configuration)
