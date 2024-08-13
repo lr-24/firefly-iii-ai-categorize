@@ -31,8 +31,11 @@ export default class OpenAiService {
                 messages: [{ role: "user", content: prompt }]
             });
 
+            // Handle and clean up the response to remove any formatting
             let guess = response.data.choices[0]?.message?.content || '';
-            guess = guess.replace("\n", "").trim();
+            guess = guess.replace(/[*_`~]/g, ''); // Remove Markdown formatting characters
+            guess = guess.replace("\n", "");    // Remove newlines
+            guess = guess.trim();               // Trim leading and trailing spaces
 
             if (!categories.includes(guess)) {
                 console.warn(`OpenAI could not classify the transaction.\nPrompt: ${prompt}\nOpenAI's guess: ${guess}`);
@@ -58,7 +61,7 @@ export default class OpenAiService {
     }
 
     #generatePrompt(categories, destinationName, description) {
-        return `Sei un esperto di transazioni bancarie e hai a disposizione tutta la conoscenza di internet. Voglio categorizzare le transazioni sul mio conto bancario in queste categorie: ${categories.join(", ")} In quale categoria rientrerebbe una transazione dal "${destinationName}" con la descrizione "${description}"? Rispondi solo con il nome di una delle categorie indicate, eliminando ogni altra parola superflua dalla risposta. Fornisci una risposta in formato di testo semplice, senza formattazione aggiuntiva come grassetto, elenchi puntati o altri stili: per esempio, voglio risposte come "Auto - Pedaggi" o "Casa - Bollette".`;
+        return `Sei un esperto di transazioni bancarie e hai a disposizione tutta la conoscenza di internet. Voglio categorizzare le transazioni sul mio conto bancario in queste categorie: ${categories.join(", ")} In quale categoria rientrerebbe una transazione dal "${destinationName}" con la descrizione "${description}"? Rispondi solo con il nome di una delle categorie indicate, eliminando ogni altra parola superflua dalla risposta: per esempio, voglio risposte come "Auto - Pedaggi" o "Casa - Bollette". Fornisci una risposta in formato di testo semplice, senza formattazione aggiuntiva come grassetto, elenchi puntati o altri stili.`;
     }
 }
 
