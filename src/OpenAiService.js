@@ -3,15 +3,18 @@ import { getConfigVariable } from "./util.js";
 
 export default class OpenAiService {
     #axiosInstance;
-    #model = "gpt-3.5-turbo"; // Adjust model name if needed
+    #model = "gpt-3.5-turbo"; // Modifica il nome del modello se necessario
 
     constructor() {
         const apiKey = getConfigVariable("OPENAI_API_KEY");
-        const baseURL = getConfigVariable("OPENAI_BASE_URL");
+        const baseURL = getConfigVariable("OPENAI_BASE_URL") || 'https://api.openai.com/v1'; // Imposta un valore di fallback
 
-        // Create an instance of axios with a custom base URL
+        if (!apiKey) {
+            throw new Error("API key is not defined in the configuration.");
+        }
+
         this.#axiosInstance = axios.create({
-            baseURL: baseURL, // Official OpenAI base URL; adjust if using a different service
+            baseURL: baseURL, // Imposta l'URL di base personalizzato
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json'
@@ -23,20 +26,16 @@ export default class OpenAiService {
         try {
             const prompt = this.#generatePrompt(categories, destinationName, description);
 
-            // Use the axios instance to make a POST request to OpenAI's API
-            const response = await this.#axiosInstance.post('/chat/completions', {
+            // Esegui una richiesta POST all'endpoint appropriato
+            const response = await this.#axiosInstance.post('/v1/chat/completions', { // Verifica l'endpoint
                 model: this.#model,
                 messages: [{ role: "user", content: prompt }]
             });
 
-            // Make sure the response structure matches the actual API response
-            let guess = response.data.choices[0].message.content;
-            guess = guess.replace("\n", "").trim();
-
+            // Assicurati che la struttura della risposta sia corretta
+            const guess = response.data.choices[0]?.message?.content?.trim() || '';
             if (categories.indexOf(guess) === -1) {
-                console.warn(`OpenAI could not classify the transaction. 
-                Prompt: ${prompt}
-                OpenAI's guess: ${guess}`);
+                console.warn(`OpenAI could not classify the transaction.\nPrompt: ${prompt}\nOpenAI's guess: ${guess}`);
                 return null;
             }
 
