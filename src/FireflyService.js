@@ -7,7 +7,7 @@ export default class OpenAiService {
 
     constructor() {
         const apiKey = getConfigVariable("OPENAI_API_KEY");
-        const baseURL = getConfigVariable("OPENAI_BASE_URL")
+        const baseURL = getConfigVariable("OPENAI_BASE_URL");
 
         if (!apiKey) {
             throw new Error("API key is not defined in the configuration.");
@@ -59,7 +59,7 @@ export default class OpenAiService {
 
     #generatePrompt(categories, destinationName, description) {
         return `Sei un esperto di transazioni bancarie e hai a disposizione tutta la conoscenza di internet. Dato che voglio categorizzare le transazioni sul mio conto bancario in queste categorie: ${categories.join(", ")}
-In quale categoria rientrerebbe una transazione dal "${destinationName}"  con la descrizione "${description}"?
+In quale categoria rientrerebbe una transazione dal "${destinationName}" con la descrizione "${description}"?
 Rispondi solo con il nome di una delle categorie indicate, eliminando ogni altra parola superflua dalla risposta.`;
     }
 }
