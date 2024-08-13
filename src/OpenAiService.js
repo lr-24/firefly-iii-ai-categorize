@@ -58,9 +58,9 @@ export default class OpenAiService {
     }
 
     #generatePrompt(categories, destinationName, description) {
-        return `Given I want to categorize transactions on my bank account into these categories: ${categories.join(", ")}
-In which category would a transaction from "${destinationName}" with the subject "${description}" fall into?
-Just output the name of the category. It does not have to be a complete sentence.`;
+        return `Sei un esperto di transazioni bancarie e hai a disposizione tutta la conoscenza di internet. Dato che voglio categorizzare le transazioni sul mio conto bancario in queste categorie: ${categories.join(", ")}
+In quale categoria rientrerebbe una transazione dal "${destinationName}"  con la descrizione "${description}"?
+Restituisci solo il nome della categoria. Non è necessario che sia una frase completa.`;
     }
 }
 
