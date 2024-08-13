@@ -1,79 +1,88 @@
-import axios from "axios";
-import { getConfigVariable } from "./util.js";
+import {getConfigVariable} from "./util.js";
 
-export default class OpenAiService {
-    #axiosInstance;
-    #model = "gpt-3.5-turbo"; // Modifica il nome del modello se necessario
+export default class FireflyService {
+    #BASE_URL;
+    #PERSONAL_TOKEN;
 
     constructor() {
-        const apiKey = getConfigVariable("OPENAI_API_KEY");
-        const baseURL = getConfigVariable("OPENAI_BASE_URL");
-
-        if (!apiKey) {
-            throw new Error("API key is not defined in the configuration.");
+        this.#BASE_URL = getConfigVariable("FIREFLY_URL")
+        if (this.#BASE_URL.slice(-1) === "/") {
+            this.#BASE_URL = this.#BASE_URL.substring(0, this.#BASE_URL.length - 1)
         }
 
-        this.#axiosInstance = axios.create({
-            baseURL: baseURL, // Imposta l'URL di base personalizzato
+        this.#PERSONAL_TOKEN = getConfigVariable("FIREFLY_PERSONAL_TOKEN")
+    }
+
+    async getCategories() {
+        const response = await fetch(`${this.#BASE_URL}/api/v1/categories`, {
             headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
+                Authorization: `Bearer ${this.#PERSONAL_TOKEN}`,
             }
         });
-    }
 
-    async classify(categories, destinationName, description) {
-        try {
-            const prompt = this.#generatePrompt(categories, destinationName, description);
-
-            // Esegui una richiesta POST all'endpoint appropriato per completamenti
-            const response = await this.#axiosInstance.post('/chat/completions', { // Verifica l'endpoint
-                model: this.#model,
-                messages: [{ role: "user", content: prompt }]
-            });
-
-            // Estrai il testo dalla risposta
-            let guess = response.data.choices[0]?.message?.content || '';
-            guess = guess.replace("\n", "").trim();
-
-            // Verifica se la risposta è una delle categorie
-            if (categories.indexOf(guess) === -1) {
-                console.warn(`OpenAI could not classify the transaction.\nPrompt: ${prompt}\nOpenAI's guess: ${guess}`);
-                return null;
-            }
-
-            return {
-                prompt,
-                response: guess,
-                category: guess
-            };
-
-        } catch (error) {
-            if (error.response) {
-                console.error(error.response.status);
-                console.error(error.response.data);
-                throw new OpenAiException(error.response.status, error.response, error.response.data);
-            } else {
-                console.error(error.message);
-                throw new OpenAiException(null, null, error.message);
-            }
+        if (!response.ok) {
+            throw new FireflyException(response.status, response, await response.text())
         }
+
+        const data = await response.json();
+
+        const categories = new Map();
+        data.data.forEach(category => {
+            categories.set(category.attributes.name, category.id);
+        });
+
+        return categories;
     }
 
-    #generatePrompt(categories, destinationName, description) {
-        return `Dato che voglio categorizzare le transazioni sul mio conto bancario in queste categorie: ${categories.join(", ")}
-In quale categoria rientrerebbe una transazione dal "${destinationName}" con la descrizione "${description}"?
-Rispondi solo con il nome di una delle categorie indicate, eliminando ogni altra parola superflua dalla risposta.`;
+    async setCategory(transactionId, transactions, categoryId) {
+        const tag = getConfigVariable("FIREFLY_TAG", "AI categorized");
+
+        const body = {
+            apply_rules: true,
+            fire_webhooks: true,
+            transactions: [],
+        }
+
+        transactions.forEach(transaction => {
+            let tags = transaction.tags;
+            if (!tags) {
+                tags = [];
+            }
+            tags.push(tag);
+
+            body.transactions.push({
+                transaction_journal_id: transaction.transaction_journal_id,
+                category_id: categoryId,
+                tags: tags,
+            });
+        })
+
+        const response = await fetch(`${this.#BASE_URL}/api/v1/transactions/${transactionId}`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${this.#PERSONAL_TOKEN}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            throw new FireflyException(response.status, response, await response.text())
+        }
+
+        await response.json();
+        console.info("Transaction updated")
     }
 }
 
-class OpenAiException extends Error {
+class FireflyException extends Error {
     code;
     response;
     body;
 
     constructor(statusCode, response, body) {
-        super(`Error while communicating with OpenAI: ${statusCode} - ${body}`);
+        super(`Error while communicating with Firefly III: ${statusCode} - ${body}`);
+
         this.code = statusCode;
         this.response = response;
         this.body = body;
