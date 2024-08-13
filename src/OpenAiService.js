@@ -60,7 +60,7 @@ export default class OpenAiService {
     #generatePrompt(categories, destinationName, description) {
         return `Sei un esperto di transazioni bancarie e hai a disposizione tutta la conoscenza di internet. Dato che voglio categorizzare le transazioni sul mio conto bancario in queste categorie: ${categories.join(", ")}
 In quale categoria rientrerebbe una transazione dal "${destinationName}" con la descrizione "${description}"?
-Rispondi solo con il nome di una delle categorie indicate, eliminando ogni altra parola superflua dalla risposta.`;
+Rispondi solo con il nome di una delle categorie indicate, eliminando ogni altra parola superflua dalla risposta. Fornisci una risposta in formato di testo semplice, senza formattazione aggiuntiva come grassetto, elenchi puntati o altri stili: per esempio, voglio risposte come "Auto - Pedaggi" o "Casa - Bollette"`;
     }
 }
 
