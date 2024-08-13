@@ -26,14 +26,17 @@ export default class OpenAiService {
         try {
             const prompt = this.#generatePrompt(categories, destinationName, description);
 
-            // Esegui una richiesta POST all'endpoint appropriato
+            // Esegui una richiesta POST all'endpoint appropriato per completamenti
             const response = await this.#axiosInstance.post('/chat/completions', { // Verifica l'endpoint
                 model: this.#model,
                 messages: [{ role: "user", content: prompt }]
             });
 
-            // Assicurati che la struttura della risposta sia corretta
-            const guess = response.data.choices[0]?.message?.content?.trim() || '';
+            // Estrai il testo dalla risposta
+            let guess = response.data.choices[0]?.message?.content || '';
+            guess = guess.replace("\n", "").trim();
+
+            // Verifica se la risposta è una delle categorie
             if (categories.indexOf(guess) === -1) {
                 console.warn(`OpenAI could not classify the transaction.\nPrompt: ${prompt}\nOpenAI's guess: ${guess}`);
                 return null;
@@ -58,7 +61,7 @@ export default class OpenAiService {
     }
 
     #generatePrompt(categories, destinationName, description) {
-        return `Sei un esperto di transazioni bancarie e hai a disposizione tutta la conoscenza di internet. Dato che voglio categorizzare le transazioni sul mio conto bancario in queste categorie: ${categories.join(", ")}
+        return `Dato che voglio categorizzare le transazioni sul mio conto bancario in queste categorie: ${categories.join(", ")}
 In quale categoria rientrerebbe una transazione dal "${destinationName}" con la descrizione "${description}"?
 Rispondi solo con il nome di una delle categorie indicate, eliminando ogni altra parola superflua dalla risposta.`;
     }
