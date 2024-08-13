@@ -7,7 +7,7 @@ export default class OpenAiService {
 
     constructor() {
         const apiKey = getConfigVariable("OPENAI_API_KEY");
-        const baseURL = getConfigVariable("OPENAI_BASE_URL") || 'https://api.openai.com/v1'; // Imposta un valore di fallback
+        const baseURL = getConfigVariable("OPENAI_BASE_URL")
 
         if (!apiKey) {
             throw new Error("API key is not defined in the configuration.");
@@ -27,7 +27,7 @@ export default class OpenAiService {
             const prompt = this.#generatePrompt(categories, destinationName, description);
 
             // Esegui una richiesta POST all'endpoint appropriato
-            const response = await this.#axiosInstance.post('/v1/chat/completions', { // Verifica l'endpoint
+            const response = await this.#axiosInstance.post('/chat/completions', { // Verifica l'endpoint
                 model: this.#model,
                 messages: [{ role: "user", content: prompt }]
             });
