@@ -7,9 +7,11 @@ export default class OpenAiService {
 
     constructor() {
         const apiKey = getConfigVariable("OPENAI_API_KEY")
+        const baseURL = getConfigVariable("BASE_URL")
 
         const configuration = new Configuration({
             apiKey
+            baseURL
         });
 
         this.#openAi = new OpenAIApi(configuration)
