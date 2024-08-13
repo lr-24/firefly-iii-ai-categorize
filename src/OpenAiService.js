@@ -1,32 +1,35 @@
-import { Configuration, OpenAIApi } from "openai";
+import axios from "axios";
 import { getConfigVariable } from "./util.js";
 
 export default class OpenAiService {
-    #openAi;
+    #axiosInstance;
     #model = "gpt-3.5-turbo"; // Adjust model name if needed
 
     constructor() {
         const apiKey = getConfigVariable("OPENAI_API_KEY");
-        const baseURL = getConfigVariable("OPENAI_BASE_URL"); // Correct variable name
+        const baseURL = getConfigVariable("OPENAI_BASE_URL");
 
-        const configuration = new Configuration({
-            apiKey,
-            baseURL // Correct variable name
+        // Create an instance of axios with a custom base URL
+        this.#axiosInstance = axios.create({
+            baseURL: baseURL, // Official OpenAI base URL; adjust if using a different service
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            }
         });
-
-        this.#openAi = new OpenAIApi(configuration);
     }
 
     async classify(categories, destinationName, description) {
         try {
             const prompt = this.#generatePrompt(categories, destinationName, description);
 
-            // Use createCompletion or createChatCompletion based on model
-            const response = await this.#openAi.createChatCompletion({
+            // Use the axios instance to make a POST request to OpenAI's API
+            const response = await this.#axiosInstance.post('/chat/completions', {
                 model: this.#model,
                 messages: [{ role: "user", content: prompt }]
             });
 
+            // Make sure the response structure matches the actual API response
             let guess = response.data.choices[0].message.content;
             guess = guess.replace("\n", "").trim();
 
