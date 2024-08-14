@@ -82,8 +82,8 @@ export default class App {
     #handleWebhook(req, res) {
         // TODO: validate auth
 
-        if (req.body?.trigger !== "STORE_TRANSACTION") {
-            throw new WebhookException("trigger is not STORE_TRANSACTION. Request will not be processed");
+        if (req.body?.trigger !== "STORE_UPDATE") {
+            throw new WebhookException("trigger is not STORE_UPDATE. Request will not be processed");
         }
 
         if (req.body?.response !== "TRANSACTIONS") {
