@@ -98,8 +98,8 @@ export default class App {
             throw new WebhookException("No transactions are available in content.transactions");
         }
 
-        if (req.body.content.transactions[0].type !== "withdrawal") {
-            throw new WebhookException("content.transactions[0].type has to be 'withdrawal'. Transaction will be ignored.");
+        if (!["withdrawal", "deposit"].includes(req.body.content.transactions[0].type)) {
+            throw new WebhookException("content.transactions[0].type must be 'withdrawal' or 'deposit'. Transaction will be ignored.");
         }
 
         if (req.body.content.transactions[0].category_id !== null) {
