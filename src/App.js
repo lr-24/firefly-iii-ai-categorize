@@ -57,7 +57,7 @@ export default class App {
 
         this.#express.post('/webhook', this.#onWebhook.bind(this));
 
-        this.#server.listen(this.#PORT, async () => {
+        this.#server.listen(this.#PORT, () => {
             console.log(`Application running on port ${this.#PORT}`);
         });
 
@@ -79,18 +79,23 @@ export default class App {
     }
 
     #handleWebhook(req, res) {
-        // Define the list of substrings to remove
-        const substringsToRemove = ['PAGAMENTO POS', 'BONIFICO TRN', 'PROVA'];
+        // Define the list of regex patterns to remove
+        const exactSubstringsToRemove = [
+            /PAGAMENTO POS\b/i, // Exact match for 'PAGAMENTO POS'
+            /VILNIUS IRL.*$/i, // Remove 'VILNIUS' and everything following it
+            /DUBLIN IRL.*$/i, // Remove 'VILNIUS' and everything following it
+            /OPERAZIONE.*$/i // Remove 'OPERAZIONE' and everything following it
+        ];
 
-        // Helper function to remove specific substrings
-        function removeSubstrings(description, substrings) {
+        // Helper function to remove specific substrings using regex patterns
+        function removeSubstrings(description, regexPatterns) {
             let result = description;
-            substrings.forEach(substring => {
-                // Create a regex pattern for the substring
-                const pattern = new RegExp(substring, 'gi');
-                // Replace all occurrences of the substring with an empty string
+
+            // Apply each regex pattern to remove substrings
+            regexPatterns.forEach(pattern => {
                 result = result.replace(pattern, '');
             });
+
             return result.trim(); // Trim any extra spaces from the result
         }
 
@@ -131,7 +136,7 @@ export default class App {
         const description = req.body.content.transactions[0].description;
 
         // Remove specific substrings from the description
-        const cleanedDescription = removeSubstrings(description, substringsToRemove);
+        const cleanedDescription = removeSubstrings(description, exactSubstringsToRemove);
 
         const job = this.#jobList.createJob({
             destinationName,
@@ -143,12 +148,14 @@ export default class App {
 
             const categories = await this.#firefly.getCategories();
 
-            const {category, prompt, response} = await this.#openAi.classify(Array.from(categories.keys()), destinationName, cleanedDescription);
+            const { category, prompt, response } = await this.#openAi.classify(Array.from(categories.keys()), destinationName, cleanedDescription);
 
-            const newData = Object.assign({}, job.data);
-            newData.category = category;
-            newData.prompt = prompt;
-            newData.response = response;
+            const newData = {
+                ...job.data,
+                category,
+                prompt,
+                response
+            };
 
             this.#jobList.updateJobData(job.id, newData);
 
