@@ -189,18 +189,18 @@
                         const jobElement = document.querySelector(`[data-job-id="${jobId}"]`);
 
                         if (jobElement) {
-                            // Find the existing assigned category element
-                            let assignedCategoryElement = jobElement.querySelector('.assigned-category');
+                            // Find the assigned category element
+                            const assignedCategoryElement = jobElement.querySelector('.assigned-category');
                             
-                            // If it doesn't exist, create it
-                            if (!assignedCategoryElement) {
-                                assignedCategoryElement = document.createElement('div');
-                                assignedCategoryElement.innerHTML = `<strong>Assigned category:</strong> <span class="assigned-category"></span>`;
-                                jobElement.appendChild(assignedCategoryElement);
+                            if (assignedCategoryElement) {
+                                // Update the text content to show the newly selected category
+                                assignedCategoryElement.textContent = categories.get(selectedCategory);
+                            } else {
+                                // If the element doesn't exist, create it
+                                const newAssignedCategoryElement = document.createElement('div');
+                                newAssignedCategoryElement.innerHTML = `<strong>Assigned category:</strong> <span class="assigned-category">${categories.get(selectedCategory)}</span>`;
+                                jobElement.appendChild(newAssignedCategoryElement);
                             }
-
-                            // Update the assigned category text
-                            assignedCategoryElement.querySelector('span').textContent = Array.from(categories).find(([id]) => id === selectedCategory)[1];
                         }
                     } else {
                         console.error('Failed to update category:', response.error);
