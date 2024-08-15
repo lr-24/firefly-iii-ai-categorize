@@ -46,8 +46,8 @@ export default class App {
         this.#io = new Server(this.#server);
 
         this.#jobList = new JobList();
-        this.#jobList.on('job created', data => this.#io.emit('job created', data));
-        this.#jobList.on('job updated', data => this.#io.emit('job updated', data));
+        this.#jobList.on('job created', job => this.#io.emit('job created', job));
+        this.#jobList.on('job updated', job => this.#io.emit('job updated', job));
 
         this.#express.use(express.json());
 
@@ -64,6 +64,7 @@ export default class App {
 
         this.#io.on('connection', socket => {
             console.log('Client connected');
+            // Emit all current jobs when a client connects
             socket.emit('jobs', Array.from(this.#jobList.getJobs().values()));
         });
     }
@@ -153,7 +154,7 @@ export default class App {
                     categories: Array.from(categories.keys())
                 });
             } else {
-                await this.#firefly.setCategory(req.body.content.id, job.data.transactions, categories.get(category));
+                await this.#firefly.setCategory(req.body.content.id, [], categories.get(category));
             }
 
             this.#jobList.setJobFinished(job.id);
