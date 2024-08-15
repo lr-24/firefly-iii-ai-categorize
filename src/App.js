@@ -135,6 +135,10 @@ export default class App {
 
             try {
                 const categories = await this.#firefly.getCategories();
+                if (!categories || categories.size === 0) {
+                    throw new Error('No categories available from Firefly');
+                }
+
                 const classificationResult = await this.#openAi.classify(
                     Array.from(categories.keys()), 
                     destinationName, 
@@ -166,7 +170,11 @@ export default class App {
                     });
                 } else {
                     console.log('Setting category for job:', job.id);
-                    await this.#firefly.setCategory(req.body.content.id, job.data.transactions, categories.get(category));
+                    const categoryId = categories.get(category);
+                    if (!categoryId) {
+                        throw new Error('Invalid category ID');
+                    }
+                    await this.#firefly.setCategory(req.body.content.id, [], categoryId);
                 }
 
                 this.#jobList.setJobFinished(job.id);
@@ -185,7 +193,6 @@ export default class App {
                 throw new Error('Transaction ID and category are required.');
             }
 
-            console.log('Handling category input:', { transactionId, category });
             await this.#handleCategoryInput(transactionId, category);
             res.send('Category recorded.');
         } catch (e) {
@@ -196,12 +203,11 @@ export default class App {
 
     async #handleCategoryInput(transactionId, category) {
         const categories = await this.#firefly.getCategories();
-        const categoryId = categories.get(category);
-
-        if (!categoryId) {
+        if (!categories || !categories.has(category)) {
             throw new Error('Invalid category.');
         }
 
+        const categoryId = categories.get(category);
         await this.#firefly.setCategory(transactionId, [], categoryId); // Assuming the transactions array is empty or managed separately
     }
 }
