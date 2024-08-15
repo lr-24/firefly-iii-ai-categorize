@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Firefly III AI Categorizer</title>
+    <title>FireflyService III AI Categorizer</title>
     <style>
         body {
             font-family: sans-serif;
@@ -36,14 +37,6 @@
             background: #eeeeee;
             overflow-x: auto;
         }
-
-        .category-form {
-            margin-top: 1em;
-        }
-
-        .category-form select {
-            margin-right: 1em;
-        }
     </style>
 </head>
 <body>
@@ -52,6 +45,26 @@
     <section>
         <h2>Jobs</h2>
         <div id="mount"></div>
+<!--        <article class="job">-->
+<!--            <div><strong>Status:</strong> <span>queued</span></div>-->
+<!--            <div><strong>Created:</strong>-->
+<!--                <time>2023-05-21 15:50:00</time>-->
+<!--            </div>-->
+<!--            <div><strong>Webhook UUID:</strong> <span>34zrurjd-44df-we4dtfds</span></div>-->
+<!--            <div><strong>Destination name:</strong> <span>LIEFERANDO.DE LIEFERSERVI</span></div>-->
+<!--            <div><strong>Description:</strong> <span>LIEFERANDO.DE LIEFERSERVI; AMSTERDAM NL; KARTE 8338; 40010075001 16052023; KDN-REF 000000986464</span>-->
+<!--            </div>-->
+<!--            <div><strong>Prompt:</strong><br>-->
+<!--                <pre>Given i want to categorize transactions on my bank account into this categories: Bargeld, Gas, Haushalt, Kino, Lebensmittel, Lieferdienst, ÖPNV, Restaurants, Rundfunkbeitrag, Strom-->
+<!--In which category would a transaction from "LIEFERANDO.DE LIEFERSERVI" with the subject "LIEFERANDO.DE LIEFERSERVI; AMSTERDAM NL; KARTE 8338; 40010075001 16052023; KDN-REF 000000986464" fall into?-->
+<!--Just output the name of the category. Does not have to be a complete sentence.</pre>-->
+<!--            </div>-->
+<!--            <div><strong>Open AI's guess:</strong><br>-->
+<!--                <pre>-->
+<!--Lieferdienst-->
+<!--</pre>-->
+<!--            </div>-->
+<!--        </article>-->
     </section>
 </div>
 
@@ -64,13 +77,14 @@
     socket.on('jobs', jobs => {
         console.log('jobs', jobs);
 
-        jobs.sort((a, b) => new Date(b.created) - new Date(a.created));
+        jobs.sort((a, b) => {
+            return new Date(b.created) - new Date(a.created);
+        })
 
-        mount.innerHTML = '';
         jobs.forEach(job => {
             const element = document.createElement('div');
             element.innerHTML = renderJob(job);
-            mount.appendChild(element);
+            mount.appendChild(element)
         });
     });
 
@@ -79,21 +93,18 @@
         const element = document.createElement('div');
         element.innerHTML = renderJob(e.job);
         mount.prepend(element);
-    });
+    })
 
     socket.on('job updated', e => {
-        console.log('job updated', e);
+        console.log('job updated', e)
 
         const element = document.createElement('div');
         element.innerHTML = renderJob(e.job);
 
         const oldElement = document.querySelector(`[data-job-id="${e.job.id}"]`);
-        if (oldElement) {
-            oldElement.replaceWith(element);
-        } else {
-            mount.appendChild(element);
-        }
-    });
+        oldElement.before(element);
+        oldElement.remove();
+    })
 
     const renderJob = (job) => {
         return `<article class="job" data-job-id="${job.id}">
@@ -101,63 +112,28 @@
             <div><strong>Status:</strong> <span>${job.status}</span></div>
             <div><strong>Created:</strong>
                 <time>${Intl.DateTimeFormat(undefined, {
-                    dateStyle: 'medium',
-                    timeStyle: 'medium'
-                }).format(new Date(job.created))}</time>
+            dateStyle: 'medium',
+            timeStyle: 'medium'
+        }).format(new Date(job.created))}</time>
             </div>
             <div><strong>Destination name:</strong> <span>${job.data?.destinationName || ''}</span></div>
-            <div><strong>Description:</strong> <span>${job.data?.description || ''}</span></div>
-            <div><strong>Guessed category:</strong> <span>${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
-            ${job.data?.prompt ? `<div><strong>Prompt:</strong><br>
+            <div><strong>Description:</strong> <span>${job.data?.description || ''}</span>
+            <div><strong>Guessed category:</strong> <span>${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span>
+            </div>
+            ${ job.data?.prompt ? `<div><strong>Prompt:</strong><br>
                 <details>
                     <summary>Show</summary>
                     <pre>${job.data.prompt}</pre>
                 </details>
             </div>` : ''}
-            ${job.data?.response ? `<div><strong>Open AI's response:</strong>
-                <details>
+            ${ job.data?.response ? `<div><strong>Open AI's response:</strong>
+                 <details>
                     <summary>Show</summary>
                     <pre>${job.data.response}</pre>
-                </details>
+                 </details>
             </div>` : ''}
-            ${job.status === 'human_input' ? renderCategoryForm(job) : ''}
-        </article>`;
-    };
-
-    const renderCategoryForm = (job) => {
-        return `
-            <div class="category-form">
-                <select id="category-select-${job.id}">
-                    ${job.data.categories.map(([name, id]) => `<option value="${id}">${name}</option>`).join('')}
-                </select>
-                <button onclick="setCategory('${job.id}')">Set Category</button>
-            </div>
-        `;
-    };
-
-    const setCategory = async (jobId) => {
-        const select = document.getElementById(`category-select-${jobId}`);
-        const categoryId = select.value;
-
-        try {
-            const response = await fetch('/set-category', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ jobId, categoryId })
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to set category');
-            }
-
-            console.log('Category set successfully');
-        } catch (error) {
-            console.error('Error setting category:', error);
-            alert('Failed to set category. Please try again.');
-        }
-    };
+        </article>`
+    }
 </script>
 </body>
 </html>
