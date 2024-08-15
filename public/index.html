@@ -10,6 +10,7 @@
             font-family: sans-serif;
             background: lightgray;
         }
+
         .container {
             max-width: max(80%, 1024px);
             margin: 5% auto;
@@ -18,35 +19,22 @@
             border-radius: 5px;
             box-shadow: 0 0 5px rgba(0, 0, 0, .25);
         }
+
         h1 {
             text-align: center;
         }
+
         .job {
             border: solid 1px;
             border-radius: 5px;
             margin-bottom: 2em;
             padding: 24px;
         }
+
         pre {
             padding: 7px;
             background: #eeeeee;
             overflow-x: auto;
-        }
-        #category-form {
-            display: none;
-            margin-top: 20px;
-            padding: 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            background: #f9f9f9;
-        }
-        #category-form select,
-        #category-form button {
-            margin-top: 10px;
-        }
-        #category-form label {
-            display: block;
-            margin-top: 10px;
         }
     </style>
 </head>
@@ -56,22 +44,6 @@
     <section>
         <h2>Jobs</h2>
         <div id="mount"></div>
-
-        <div id="category-form">
-            <h3>Manual Category Input</h3>
-            <form id="manual-category-form">
-                <input type="hidden" id="transaction-id" name="transactionId" />
-                <label for="description">Description:</label>
-                <p id="description"></p>
-                <label for="query">OpenAI Query:</label>
-                <p id="query"></p>
-                <label for="category">Select Category:</label>
-                <select id="category" name="category" required>
-                    <!-- Categories will be populated here -->
-                </select>
-                <button type="submit">Submit Category</button>
-            </form>
-        </div>
     </section>
 </div>
 
@@ -79,70 +51,72 @@
 <script>
     const socket = io();
 
-    // Get references to HTML elements
     const mount = document.getElementById('mount');
-    const categoryForm = document.getElementById('category-form');
-    const manualCategoryForm = document.getElementById('manual-category-form');
-    const transactionIdInput = document.getElementById('transaction-id');
-    const descriptionParagraph = document.getElementById('description');
-    const queryParagraph = document.getElementById('query');
-    const categorySelect = document.getElementById('category');
+
+    // Render a single job into HTML
+    const renderJob = (job) => {
+        return `
+            <article class="job" data-job-id="${job.id}">
+                <div><strong>ID:</strong> <span>${job.id}</span></div>
+                <div><strong>Status:</strong> <span>${job.status}</span></div>
+                <div><strong>Created:</strong>
+                    <time>${Intl.DateTimeFormat(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'medium'
+                    }).format(new Date(job.created))}</time>
+                </div>
+                <div><strong>Destination name:</strong> <span>${job.data?.destinationName || 'No destination available'}</span></div>
+                <div><strong>Description:</strong> <span>${job.data?.description || 'No description available'}</span></div>
+                <div><strong>Guessed category:</strong> <span>${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
+                ${job.data?.prompt ? `
+                    <div><strong>Prompt:</strong><br>
+                        <details>
+                            <summary>Show</summary>
+                            <pre>${job.data.prompt}</pre>
+                        </details>
+                    </div>` : ''}
+                ${job.data?.response ? `
+                    <div><strong>Open AI's response:</strong>
+                        <details>
+                            <summary>Show</summary>
+                            <pre>${job.data.response}</pre>
+                        </details>
+                    </div>` : ''}
+            </article>`;
+    };
 
     // Handle incoming jobs from the server
     socket.on('jobs', jobs => {
+        console.log('jobs', jobs);
         mount.innerHTML = ''; // Clear previous jobs
-        jobs.forEach(job => {
-            const jobDiv = document.createElement('div');
-            jobDiv.className = 'job';
-            jobDiv.innerHTML = `
-                <h3>Job ID: ${job.id}</h3>
-                <p><strong>Description:</strong> ${job.description || 'No description available'}</p>
-                <p><strong>Destination:</strong> ${job.destinationName || 'No destination available'}</p>
-            `;
-            mount.appendChild(jobDiv);
-        });
+
+        jobs.sort((a, b) => new Date(b.created) - new Date(a.created))
+            .forEach(job => {
+                const element = document.createElement('div');
+                element.innerHTML = renderJob(job);
+                mount.appendChild(element);
+            });
     });
 
-    // Handle category input request from the server
-    socket.on('request-category-input', data => {
-        transactionIdInput.value = data.transactionId;
-        descriptionParagraph.textContent = data.description;
-        queryParagraph.textContent = data.prompt;
-        categorySelect.innerHTML = ''; // Clear previous options
-
-        data.categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category;
-            option.textContent = category;
-            categorySelect.appendChild(option);
-        });
-
-        categoryForm.style.display = 'block';
+    // Handle newly created job
+    socket.on('job created', e => {
+        console.log('job created', e);
+        const element = document.createElement('div');
+        element.innerHTML = renderJob(e.job);
+        mount.prepend(element);
     });
 
-    // Handle category form submission
-    manualCategoryForm.addEventListener('submit', event => {
-        event.preventDefault();
+    // Handle job updates
+    socket.on('job updated', e => {
+        console.log('job updated', e);
+        const element = document.createElement('div');
+        element.innerHTML = renderJob(e.job);
 
-        const transactionId = transactionIdInput.value;
-        const category = categorySelect.value;
-
-        fetch('/category_input', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ transactionId, category })
-        }).then(response => {
-            if (response.ok) {
-                alert('Category recorded.');
-                categoryForm.style.display = 'none';
-            } else {
-                return response.text().then(text => { throw new Error(text); });
-            }
-        }).catch(error => {
-            alert('Error: ' + error.message);
-        });
+        const oldElement = document.querySelector(`[data-job-id="${e.job.id}"]`);
+        if (oldElement) {
+            oldElement.before(element);
+            oldElement.remove();
+        }
     });
 </script>
 </body>
