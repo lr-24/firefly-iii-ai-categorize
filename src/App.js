@@ -135,11 +135,17 @@ export default class App {
 
             try {
                 const categories = await this.#firefly.getCategories();
-                const { category, prompt, response } = await this.#openAi.classify(
+                const classificationResult = await this.#openAi.classify(
                     Array.from(categories.keys()), 
                     destinationName, 
                     cleanedDescription
                 );
+
+                if (!classificationResult || typeof classificationResult !== 'object') {
+                    throw new Error('Invalid classification result');
+                }
+
+                const { category, prompt, response } = classificationResult;
 
                 const newData = {
                     ...job.data,
