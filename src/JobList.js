@@ -64,4 +64,15 @@ export default class JobList {
             this.#eventEmitter.emit('job updated', {job, jobs: Array.from(this.#jobs.values())});
         }
     }
+
+    setJobFailed(jobId, errorMessage) {
+    const job = this.getJob(jobId);
+    if (job) {
+        job.status = 'failed';
+        job.errorMessage = errorMessage; // Store error message for diagnostics
+    }
 }
+}
+
+
+
