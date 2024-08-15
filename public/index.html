@@ -183,19 +183,15 @@
             const selectedCategory = categorySelect.value;
 
             if (selectedCategory) {
+                // Update the UI immediately
+                const guessedCategorySpan = document.querySelector(`.job[data-job-id="${jobId}"] .guessed-category`);
+                guessedCategorySpan.innerHTML = categories.get(selectedCategory) || '<em>Not yet classified</em>';
+
                 // Emit the event to the server with the updated category
-                socket.emit('update job category', { jobId, category: selectedCategory }, (response) => {
-                    if (response.success) {
-                        // Update the UI only after successful response from the server
-                        const guessedCategorySpan = document.querySelector(`.job[data-job-id="${jobId}"] .guessed-category`);
-                        guessedCategorySpan.innerHTML = categories.get(selectedCategory) || '<em>Not yet classified</em>';
-                        // Disable the confirm button after submission
-                        event.target.disabled = true;
-                    } else {
-                        // Handle error (you may want to notify the user or log the error)
-                        console.error('Failed to update category:', response.message);
-                    }
-                });
+                socket.emit('update job category', { jobId, category: selectedCategory });
+
+                // Disable the confirm button after submission
+                event.target.disabled = true;
             }
         }
     });
