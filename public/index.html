@@ -32,19 +32,18 @@
             background: #eeeeee;
             overflow-x: auto;
         }
-        #category-form {
-            display: none;
+        .category-form {
             margin-top: 20px;
             padding: 15px;
             border: 1px solid #ccc;
             border-radius: 5px;
             background: #f9f9f9;
         }
-        #category-form select,
-        #category-form button {
+        .category-form select,
+        .category-form button {
             margin-top: 10px;
         }
-        #category-form label {
+        .category-form label {
             display: block;
             margin-top: 10px;
         }
@@ -56,20 +55,6 @@
     <section>
         <h2>Jobs</h2>
         <div id="mount"></div>
-
-        <div id="category-form">
-            <h3>Manual Category Input</h3>
-            <form id="manual-category-form">
-                <input type="hidden" id="transaction-id" name="transactionId" />
-                <label for="description">Description:</label>
-                <p id="description"></p>
-                <label for="prompt">Prompt:</label>
-                <pre id="prompt"></pre>
-                <label for="categories">Category:</label>
-                <select id="categories" name="category"></select>
-                <button type="submit">Submit</button>
-            </form>
-        </div>
     </section>
 </div>
 
@@ -78,12 +63,6 @@
     let socket = io();
 
     const mount = document.getElementById('mount');
-    const categoryForm = document.getElementById('category-form');
-    const manualCategoryForm = document.getElementById('manual-category-form');
-    const transactionIdInput = document.getElementById('transaction-id');
-    const descriptionPara = document.getElementById('description');
-    const promptPre = document.getElementById('prompt');
-    const categoriesSelect = document.getElementById('categories');
 
     socket.on('jobs', jobs => {
         console.log('jobs', jobs);
@@ -113,12 +92,28 @@
 
     socket.on('request-category-input', data => {
         console.log('Received request for category input:', data);
-        transactionIdInput.value = data.transactionId;
-        descriptionPara.textContent = data.description;
-        promptPre.textContent = data.prompt;
+        
+        // Create and insert the form for manual category input
+        const formContainer = document.createElement('div');
+        formContainer.classList.add('category-form');
+        formContainer.id = `form-${data.transactionId}`;
+        formContainer.innerHTML = `
+            <h3>Manual Category Input</h3>
+            <form id="manual-category-form-${data.transactionId}">
+                <input type="hidden" name="transactionId" value="${data.transactionId}" />
+                <label for="description-${data.transactionId}">Description:</label>
+                <p id="description-${data.transactionId}">${data.description}</p>
+                <label for="prompt-${data.transactionId}">Prompt:</label>
+                <pre id="prompt-${data.transactionId}">${data.prompt}</pre>
+                <label for="categories-${data.transactionId}">Category:</label>
+                <select id="categories-${data.transactionId}" name="category"></select>
+                <button type="submit">Submit</button>
+            </form>
+        `;
+        mount.appendChild(formContainer);
 
         // Populate category options
-        categoriesSelect.innerHTML = '';
+        const categoriesSelect = document.getElementById(`categories-${data.transactionId}`);
         data.categories.forEach(category => {
             const option = document.createElement('option');
             option.value = category;
@@ -126,32 +121,33 @@
             categoriesSelect.appendChild(option);
         });
 
-        categoryForm.style.display = 'block';
-    });
+        // Add event listener for the new form
+        document.getElementById(`manual-category-form-${data.transactionId}`).addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const form = event.target;
+            const transactionId = form.querySelector('input[name="transactionId"]').value;
+            const category = form.querySelector('select[name="category"]').value;
 
-    manualCategoryForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const transactionId = transactionIdInput.value;
-        const category = categoriesSelect.value;
+            if (!transactionId || !category) {
+                alert('Please select a category.');
+                return;
+            }
 
-        if (!transactionId || !category) {
-            alert('Please select a category.');
-            return;
-        }
-
-        try {
-            await fetch('/category_input', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ transactionId, category })
-            });
-            categoryForm.style.display = 'none';
-            console.log('Category input submitted successfully');
-        } catch (error) {
-            console.error('Error submitting category input:', error);
-        }
+            try {
+                await fetch('/category_input', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ transactionId, category })
+                });
+                // Remove the form after submission
+                form.parentElement.remove();
+                console.log('Category input submitted successfully');
+            } catch (error) {
+                console.error('Error submitting category input:', error);
+            }
+        });
     });
 
     const renderJob = (job) => {
