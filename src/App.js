@@ -1,11 +1,11 @@
-import express from "express";
-import { getConfigVariable } from "./util.js";
-import FireflyService from "./FireflyService.js";
-import OpenAiService from "./OpenAiService.js";
-import { Server } from "socket.io";
-import * as http from "http";
-import Queue from "queue";
-import JobList from "./JobList.js";
+import express from 'express';
+import { getConfigVariable } from './util.js';
+import FireflyService from './FireflyService.js';
+import OpenAiService from './OpenAiService.js';
+import { Server } from 'socket.io';
+import http from 'http';
+import Queue from 'queue';
+import JobList from './JobList.js';
 
 export default class App {
     #PORT;
@@ -22,8 +22,8 @@ export default class App {
     #jobList;
 
     constructor() {
-        this.#PORT = getConfigVariable("PORT", '3000');
-        this.#ENABLE_UI = getConfigVariable("ENABLE_UI", 'false') === 'true';
+        this.#PORT = getConfigVariable('PORT', '3000');
+        this.#ENABLE_UI = getConfigVariable('ENABLE_UI', 'false') === 'true';
     }
 
     async run() {
@@ -56,6 +56,7 @@ export default class App {
         }
 
         this.#express.post('/webhook', this.#onWebhook.bind(this));
+        this.#express.post('/category_input', this.#onCategoryInput.bind(this));
 
         this.#server.listen(this.#PORT, () => {
             console.log(`Application running on port ${this.#PORT}`);
@@ -69,9 +70,9 @@ export default class App {
 
     #onWebhook(req, res) {
         try {
-            console.info("Webhook triggered");
+            console.info('Webhook triggered');
             this.#handleWebhook(req, res);
-            res.send("Queued");
+            res.send('Queued');
         } catch (e) {
             console.error(e);
             res.status(400).send(e.message);
@@ -79,64 +80,56 @@ export default class App {
     }
 
     #handleWebhook(req, res) {
-        // Define the list of regex patterns to remove
         const exactSubstringsToRemove = [
-            /PAGAMENTO POS\b/i, // Exact match for 'PAGAMENTO POS'
-            /CRV\*/i, // Exact match for 'CRV*'
-            /VILNIUS IRL.*$/i, // Remove 'VILNIUS IRL' and everything following it
-            /DUBLIN IRL.*$/i, // Remove 'DUBLIN IRL' and everything following it
-            /OPERAZIONE.*$/i // Remove 'OPERAZIONE' and everything following it
+            /PAGAMENTO POS\b/i,
+            /CRV\*/i,
+            /VILNIUS IRL.*$/i,
+            /DUBLIN IRL.*$/i,
+            /OPERAZIONE.*$/i
         ];
 
-        // Helper function to remove specific substrings using regex patterns
         function removeSubstrings(description, regexPatterns) {
             let result = description;
-
-            // Apply each regex pattern to remove substrings
             regexPatterns.forEach(pattern => {
                 result = result.replace(pattern, '');
             });
-
-            return result.trim(); // Trim any extra spaces from the result
+            return result.trim();
         }
 
-        // Validate request
-        if (req.body?.trigger !== "UPDATE_TRANSACTION") {
-            throw new WebhookException("trigger is not UPDATE_TRANSACTION. Request will not be processed");
+        if (req.body?.trigger !== 'UPDATE_TRANSACTION') {
+            throw new WebhookException('trigger is not UPDATE_TRANSACTION. Request will not be processed');
         }
 
-        if (req.body?.response !== "TRANSACTIONS") {
-            throw new WebhookException("response is not TRANSACTIONS. Request will not be processed");
+        if (req.body?.response !== 'TRANSACTIONS') {
+            throw new WebhookException('response is not TRANSACTIONS. Request will not be processed');
         }
 
         if (!req.body?.content?.id) {
-            throw new WebhookException("Missing content.id");
+            throw new WebhookException('Missing content.id');
         }
 
         if (req.body?.content?.transactions?.length === 0) {
-            throw new WebhookException("No transactions are available in content.transactions");
+            throw new WebhookException('No transactions are available in content.transactions');
         }
 
-        if (!["withdrawal", "deposit"].includes(req.body.content.transactions[0].type)) {
-            throw new WebhookException("content.transactions[0].type must be 'withdrawal' or 'deposit'. Transaction will be ignored.");
+        if (!['withdrawal', 'deposit'].includes(req.body.content.transactions[0].type)) {
+            throw new WebhookException('content.transactions[0].type must be \'withdrawal\' or \'deposit\'. Transaction will be ignored.');
         }
 
         if (req.body.content.transactions[0].category_id !== null) {
-            throw new WebhookException("content.transactions[0].category_id is already set. Transaction will be ignored.");
+            throw new WebhookException('content.transactions[0].category_id is already set. Transaction will be ignored.');
         }
 
         if (!req.body.content.transactions[0].description) {
-            throw new WebhookException("Missing content.transactions[0].description");
+            throw new WebhookException('Missing content.transactions[0].description');
         }
 
         if (!req.body.content.transactions[0].destination_name) {
-            throw new WebhookException("Missing content.transactions[0].destination_name");
+            throw new WebhookException('Missing content.transactions[0].destination_name');
         }
 
         const destinationName = req.body.content.transactions[0].destination_name;
         const description = req.body.content.transactions[0].description;
-
-        // Remove specific substrings from the description
         const cleanedDescription = removeSubstrings(description, exactSubstringsToRemove);
 
         const job = this.#jobList.createJob({
@@ -148,7 +141,6 @@ export default class App {
             this.#jobList.setJobInProgress(job.id);
 
             const categories = await this.#firefly.getCategories();
-
             const { category, prompt, response } = await this.#openAi.classify(Array.from(categories.keys()), destinationName, cleanedDescription);
 
             const newData = {
@@ -160,17 +152,50 @@ export default class App {
 
             this.#jobList.updateJobData(job.id, newData);
 
-            if (category) {
+            if (!category) {
+                this.#io.emit('request-category-input', {
+                    transactionId: req.body.content.id,
+                    description: cleanedDescription,
+                    prompt,
+                    categories: Array.from(categories.keys())
+                });
+            } else {
                 await this.#firefly.setCategory(req.body.content.id, req.body.content.transactions, categories.get(category));
             }
 
             this.#jobList.setJobFinished(job.id);
         });
     }
+
+    #onCategoryInput(req, res) {
+        try {
+            const { transactionId, category } = req.body;
+
+            if (!transactionId || !category) {
+                throw new Error('Transaction ID and category are required.');
+            }
+
+            // Process and store the user-provided category
+            this.#handleCategoryInput(transactionId, category);
+
+            res.send('Category recorded.');
+        } catch (e) {
+            console.error(e);
+            res.status(400).send(e.message);
+        }
+    }
+
+    #handleCategoryInput(transactionId, category) {
+        // Update job or transaction with the provided category
+        // Example: this.#firefly.setCategory(transactionId, category);
+        // Assuming this method exists in FireflyService or similar
+        this.#firefly.setCategory(transactionId, { category });
+    }
 }
 
 class WebhookException extends Error {
     constructor(message) {
         super(message);
+        this.name = 'WebhookException'; // Add a name to the error
     }
 }
