@@ -46,8 +46,8 @@ export default class App {
         this.#io = new Server(this.#server);
 
         this.#jobList = new JobList();
-        this.#jobList.on('job created', job => this.#io.emit('job created', job));
-        this.#jobList.on('job updated', job => this.#io.emit('job updated', job));
+        this.#jobList.on('job created', data => this.#io.emit('job created', data));
+        this.#jobList.on('job updated', data => this.#io.emit('job updated', data));
 
         this.#express.use(express.json());
 
@@ -64,7 +64,6 @@ export default class App {
 
         this.#io.on('connection', socket => {
             console.log('Client connected');
-            // Emit all current jobs when a client connects
             socket.emit('jobs', Array.from(this.#jobList.getJobs().values()));
         });
     }
@@ -75,7 +74,7 @@ export default class App {
             await this.#handleWebhook(req, res);
             res.send('Queued');
         } catch (e) {
-            console.error(e);
+            console.error('Error handling webhook:', e.message);
             res.status(400).send(e.message);
         }
     }
@@ -98,11 +97,11 @@ export default class App {
         }
 
         if (req.body?.trigger !== 'UPDATE_TRANSACTION') {
-            throw new WebhookException('trigger is not UPDATE_TRANSACTION. Request will not be processed');
+            throw new WebhookException('Trigger is not UPDATE_TRANSACTION. Request will not be processed');
         }
 
         if (req.body?.response !== 'TRANSACTIONS') {
-            throw new WebhookException('response is not TRANSACTIONS. Request will not be processed');
+            throw new WebhookException('Response is not TRANSACTIONS. Request will not be processed');
         }
 
         const transaction = req.body?.content?.transactions?.[0];
@@ -134,30 +133,41 @@ export default class App {
         await this.#queue.push(async () => {
             this.#jobList.setJobInProgress(job.id);
 
-            const categories = await this.#firefly.getCategories();
-            const { category, prompt, response } = await this.#openAi.classify(Array.from(categories.keys()), destinationName, cleanedDescription);
+            try {
+                const categories = await this.#firefly.getCategories();
+                const { category, prompt, response } = await this.#openAi.classify(
+                    Array.from(categories.keys()), 
+                    destinationName, 
+                    cleanedDescription
+                );
 
-            const newData = {
-                ...job.data,
-                category,
-                prompt,
-                response
-            };
-
-            this.#jobList.updateJobData(job.id, newData);
-
-            if (!category) {
-                this.#io.emit('request-category-input', {
-                    transactionId: req.body.content.id,
-                    description: cleanedDescription,
+                const newData = {
+                    ...job.data,
+                    category,
                     prompt,
-                    categories: Array.from(categories.keys())
-                });
-            } else {
-                await this.#firefly.setCategory(req.body.content.id, [], categories.get(category));
-            }
+                    response
+                };
 
-            this.#jobList.setJobFinished(job.id);
+                this.#jobList.updateJobData(job.id, newData);
+
+                if (!category) {
+                    console.log('Requesting category input for job:', job.id);
+                    this.#io.emit('request-category-input', {
+                        transactionId: req.body.content.id,
+                        description: cleanedDescription,
+                        prompt,
+                        categories: Array.from(categories.keys())
+                    });
+                } else {
+                    console.log('Setting category for job:', job.id);
+                    await this.#firefly.setCategory(req.body.content.id, job.data.transactions, categories.get(category));
+                }
+
+                this.#jobList.setJobFinished(job.id);
+            } catch (e) {
+                console.error('Error processing job:', job.id, e.message);
+                this.#jobList.setJobFailed(job.id);
+            }
         });
     }
 
@@ -172,7 +182,7 @@ export default class App {
             await this.#handleCategoryInput(transactionId, category);
             res.send('Category recorded.');
         } catch (e) {
-            console.error(e);
+            console.error('Error handling category input:', e.message);
             res.status(400).send(e.message);
         }
     }
