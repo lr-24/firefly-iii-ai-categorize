@@ -1,11 +1,11 @@
-import express from "express";
-import { getConfigVariable } from "./util.js";
-import FireflyService from "./FireflyService.js";
-import OpenAiService from "./OpenAiService.js";
-import { Server } from "socket.io";
-import * as http from "http";
-import Queue from "queue";
-import JobList from "./JobList.js";
+import express from 'express';
+import { getConfigVariable } from './util.js';
+import FireflyService from './FireflyService.js';
+import OpenAiService from './OpenAiService.js';
+import { Server } from 'socket.io';
+import * as http from 'http';
+import Queue from 'queue';
+import JobList from './JobList.js';
 
 export default class App {
     #PORT;
@@ -22,8 +22,8 @@ export default class App {
     #jobList;
 
     constructor() {
-        this.#PORT = getConfigVariable("PORT", '3000');
-        this.#ENABLE_UI = getConfigVariable("ENABLE_UI", 'false') === 'true';
+        this.#PORT = getConfigVariable('PORT', '3000');
+        this.#ENABLE_UI = getConfigVariable('ENABLE_UI', 'false') === 'true';
     }
 
     async run() {
@@ -73,16 +73,39 @@ export default class App {
         });
 
         this.#io.on('connection', socket => {
-            console.log('connected');
+            console.log('Client connected');
             socket.emit('jobs', Array.from(this.#jobList.getJobs().values()));
+
+            // Handle the category update event from the client
+            socket.on('update job category', async ({ jobId, category }) => {
+                try {
+                    await this.setCategory(jobId, category);
+                    // Notify all clients of the updated job
+                    const updatedJob = this.#jobList.getJob(jobId);
+                    this.#io.emit('job updated', { job: updatedJob });
+                } catch (error) {
+                    console.error('Error updating job category:', error);
+                    socket.emit('error', { message: 'Failed to update category' });
+                }
+            });
         });
+    }
+
+    async setCategory(jobId, categoryId) {
+        const job = this.#jobList.getJob(jobId);
+        if (!job || job.status !== 'human_input') {
+            throw new Error('Invalid job or job status');
+        }
+
+        await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId);
+        this.#jobList.setJobFinished(jobId);
     }
 
     #onWebhook(req, res) {
         try {
-            console.info("Webhook triggered");
+            console.info('Webhook triggered');
             this.#handleWebhook(req, res);
-            res.send("Queued");
+            res.send('Queued');
         } catch (e) {
             console.error(e);
             res.status(400).send(e.message);
@@ -107,36 +130,36 @@ export default class App {
         }
 
         // Validate request
-        if (req.body?.trigger !== "UPDATE_TRANSACTION") {
-            throw new WebhookException("trigger is not UPDATE_TRANSACTION. Request will not be processed");
+        if (req.body?.trigger !== 'UPDATE_TRANSACTION') {
+            throw new WebhookException('Trigger is not UPDATE_TRANSACTION. Request will not be processed');
         }
 
-        if (req.body?.response !== "TRANSACTIONS") {
-            throw new WebhookException("response is not TRANSACTIONS. Request will not be processed");
+        if (req.body?.response !== 'TRANSACTIONS') {
+            throw new WebhookException('Response is not TRANSACTIONS. Request will not be processed');
         }
 
         if (!req.body?.content?.id) {
-            throw new WebhookException("Missing content.id");
+            throw new WebhookException('Missing content.id');
         }
 
         if (req.body?.content?.transactions?.length === 0) {
-            throw new WebhookException("No transactions are available in content.transactions");
+            throw new WebhookException('No transactions are available in content.transactions');
         }
 
-        if (!["withdrawal", "deposit"].includes(req.body.content.transactions[0].type)) {
-            throw new WebhookException("content.transactions[0].type must be 'withdrawal' or 'deposit'. Transaction will be ignored.");
+        if (!['withdrawal', 'deposit'].includes(req.body.content.transactions[0].type)) {
+            throw new WebhookException('content.transactions[0].type must be "withdrawal" or "deposit". Transaction will be ignored.');
         }
 
         if (req.body.content.transactions[0].category_id !== null) {
-            throw new WebhookException("content.transactions[0].category_id is already set. Transaction will be ignored.");
+            throw new WebhookException('content.transactions[0].category_id is already set. Transaction will be ignored.');
         }
 
         if (!req.body.content.transactions[0].description) {
-            throw new WebhookException("Missing content.transactions[0].description");
+            throw new WebhookException('Missing content.transactions[0].description');
         }
 
         if (!req.body.content.transactions[0].destination_name) {
-            throw new WebhookException("Missing content.transactions[0].destination_name");
+            throw new WebhookException('Missing content.transactions[0].destination_name');
         }
 
         const destinationName = req.body.content.transactions[0].destination_name;
@@ -194,16 +217,6 @@ export default class App {
                 this.#jobList.setJobFailed(job.id, err.message);
             }
         });
-    }
-
-    async setCategory(jobId, categoryId) {
-        const job = this.#jobList.getJob(jobId);
-        if (!job || job.status !== 'human-input') {
-            throw new Error('Invalid job or job status');
-        }
-
-        await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId);
-        this.#jobList.setJobFinished(jobId);
     }
 }
 
