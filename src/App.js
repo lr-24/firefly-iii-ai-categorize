@@ -79,7 +79,7 @@ export default class App {
         }
     }
 
-    #handleWebhook(req, res) {
+    async #handleWebhook(req, res) {
         const exactSubstringsToRemove = [
             /PAGAMENTO POS\b/i,
             /CRV\*/i,
@@ -97,39 +97,41 @@ export default class App {
         }
 
         if (req.body?.trigger !== 'UPDATE_TRANSACTION') {
-            throw new WebhookException('trigger is not UPDATE_TRANSACTION. Request will not be processed');
+            throw new WebhookException('Trigger is not UPDATE_TRANSACTION. Request will not be processed.');
         }
 
         if (req.body?.response !== 'TRANSACTIONS') {
-            throw new WebhookException('response is not TRANSACTIONS. Request will not be processed');
+            throw new WebhookException('Response is not TRANSACTIONS. Request will not be processed.');
         }
 
         if (!req.body?.content?.id) {
             throw new WebhookException('Missing content.id');
         }
 
-        if (req.body?.content?.transactions?.length === 0) {
+        if (!req.body?.content?.transactions || req.body.content.transactions.length === 0) {
             throw new WebhookException('No transactions are available in content.transactions');
         }
 
-        if (!['withdrawal', 'deposit'].includes(req.body.content.transactions[0].type)) {
-            throw new WebhookException('content.transactions[0].type must be \'withdrawal\' or \'deposit\'. Transaction will be ignored.');
+        const transaction = req.body.content.transactions[0];
+
+        if (!['withdrawal', 'deposit'].includes(transaction.type)) {
+            throw new WebhookException('content.transactions[0].type must be "withdrawal" or "deposit". Transaction will be ignored.');
         }
 
-        if (req.body.content.transactions[0].category_id !== null) {
+        if (transaction.category_id !== null) {
             throw new WebhookException('content.transactions[0].category_id is already set. Transaction will be ignored.');
         }
 
-        if (!req.body.content.transactions[0].description) {
+        if (!transaction.description) {
             throw new WebhookException('Missing content.transactions[0].description');
         }
 
-        if (!req.body.content.transactions[0].destination_name) {
+        if (!transaction.destination_name) {
             throw new WebhookException('Missing content.transactions[0].destination_name');
         }
 
-        const destinationName = req.body.content.transactions[0].destination_name;
-        const description = req.body.content.transactions[0].description;
+        const destinationName = transaction.destination_name;
+        const description = transaction.description;
         const cleanedDescription = removeSubstrings(description, exactSubstringsToRemove);
 
         const job = this.#jobList.createJob({
@@ -169,14 +171,14 @@ export default class App {
 
     #onCategoryInput(req, res) {
         try {
-            const { transactionId, category } = req.body;
+            const { transactionId, categoryId } = req.body;
 
-            if (!transactionId || !category) {
-                throw new Error('Transaction ID and category are required.');
+            if (!transactionId || !categoryId) {
+                throw new Error('Transaction ID and category ID are required.');
             }
 
             // Process and store the user-provided category
-            this.#handleCategoryInput(transactionId, category);
+            this.#handleCategoryInput(transactionId, categoryId);
 
             res.send('Category recorded.');
         } catch (e) {
@@ -185,11 +187,16 @@ export default class App {
         }
     }
 
-    #handleCategoryInput(transactionId, category) {
-        // Update job or transaction with the provided category
-        // Example: this.#firefly.setCategory(transactionId, category);
-        // Assuming this method exists in FireflyService or similar
-        this.#firefly.setCategory(transactionId, { category });
+    #handleCategoryInput(transactionId, categoryId) {
+        // Fetch the transactions list to pass to setCategory
+        const transactions = this.#jobList.getJobById(transactionId)?.transactions;
+
+        if (!transactions) {
+            throw new Error('Transactions not found for the given transaction ID.');
+        }
+
+        // Call setCategory with the appropriate arguments
+        this.#firefly.setCategory(transactionId, transactions, categoryId);
     }
 }
 
