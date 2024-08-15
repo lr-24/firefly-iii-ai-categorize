@@ -82,6 +82,8 @@ export default class App {
         // Define the list of regex patterns to remove
         const exactSubstringsToRemove = [
             /PAGAMENTO POS\b/i, // Exact match for 'PAGAMENTO POS'
+            /CRV\*/i, // Exact match for 'CRV*'
+            
             /VILNIUS IRL.*$/i, // Remove 'VILNIUS IRL' and everything following it
             /DUBLIN IRL.*$/i, // Remove 'DUBLIN IRL' and everything following it
             /OPERAZIONE.*$/i // Remove 'OPERAZIONE' and everything following it
