@@ -56,7 +56,6 @@ export default class App {
         }
 
         this.#express.post('/webhook', this.#onWebhook.bind(this));
-
         this.#express.post('/set-category', async (req, res) => {
             try {
                 const { jobId, categoryId } = req.body;
@@ -65,6 +64,18 @@ export default class App {
             } catch (error) {
                 console.error('Error setting category:', error);
                 res.status(400).send(error.message);
+            }
+        });
+
+        // New endpoint to fetch categories
+        this.#express.get('/categories', async (req, res) => {
+            try {
+                const categories = await this.#firefly.getCategories();
+                const categoriesArray = Array.from(categories.entries()).map(([name, id]) => ({ name, id }));
+                res.json({ categories: categoriesArray });
+            } catch (error) {
+                console.error('Error fetching categories from Firefly:', error);
+                res.status(500).send('Failed to fetch categories');
             }
         });
 
@@ -97,8 +108,13 @@ export default class App {
             throw new Error('Invalid job or job status');
         }
 
-        await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId);
-        this.#jobList.setJobFinished(jobId);
+        try {
+            await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId);
+            this.#jobList.setJobFinished(jobId);
+        } catch (error) {
+            console.error('Error setting category in Firefly:', error);
+            throw error;
+        }
     }
 
     #onWebhook(req, res) {
