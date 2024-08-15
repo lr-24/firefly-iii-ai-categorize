@@ -1,4 +1,4 @@
-<!doctype html>
+!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -76,7 +76,6 @@
     const mount = document.getElementById('mount');
     let categories = new Map(); // To store categories fetched from the server
 
-    // Fetch categories from the server and store them in the `categories` Map
     async function fetchCategories() {
         try {
             const response = await fetch('/categories');
@@ -87,13 +86,14 @@
         }
     }
 
-    // Render the category options based on fetched categories
     const renderCategoryOptions = () => {
         return Array.from(categories).map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
     };
 
     const renderJob = (job) => {
         const categoryOptions = renderCategoryOptions();
+        const guessedCategory = job.data?.category ? categories.get(job.data.category) : '<em>Not yet classified</em>';
+        const assignedCategory = job.data?.assignedCategory ? categories.get(job.data.assignedCategory) : guessedCategory;
 
         return `<article class="job" data-job-id="${job.id}">
             <div><strong>ID:</strong> <span>${job.id}</span></div>
@@ -106,7 +106,7 @@
             </div>
             <div><strong>Destination name:</strong> <span>${job.data?.destinationName || ''}</span></div>
             <div><strong>Description:</strong> <span>${job.data?.description || ''}</span></div>
-            <div><strong>Guessed category:</strong> <span data-job-id="${job.id}" class="guessed-category">${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
+            <div><strong>Guessed category:</strong> <span class="guessed-category">${guessedCategory}</span></div>
             ${ job.data?.prompt ? `<div><strong>Prompt:</strong><br>
                 <details>
                     <summary>Show</summary>
@@ -119,7 +119,7 @@
                     <pre>${job.data.response}</pre>
                  </details>
             </div>` : ''}
-            <div><strong>Assigned category:</strong> <span data-job-id="${job.id}" class="assigned-category">${job.data?.assignedCategory ? categories.get(job.data.assignedCategory) : '<em>Not yet assigned</em>'}</span></div>
+            <div><strong>Assigned category:</strong> <span class="assigned-category">${assignedCategory}</span></div>
             ${ job.status === 'human_input' ? `<div><strong>Category:</strong>
                 <select data-job-id="${job.id}" class="category-select">
                     <option value="">Select a category</option>
@@ -131,8 +131,7 @@
     }
 
     const updateJobList = (jobs) => {
-        mount.innerHTML = ''; // Clear existing content
-
+        mount.innerHTML = '';
         jobs.sort((a, b) => new Date(b.created) - new Date(a.created))
             .forEach(job => {
                 const element = document.createElement('div');
@@ -169,7 +168,6 @@
             const selectedCategory = event.target.value;
             const confirmButton = document.querySelector(`.confirm-btn[data-job-id="${jobId}"]`);
             
-            // Enable the confirm button if a category is selected
             confirmButton.disabled = !selectedCategory;
         }
     });
@@ -181,39 +179,23 @@
             const selectedCategory = categorySelect.value;
 
             if (selectedCategory) {
-                // Emit the event to the server with the updated category
                 socket.emit('update job category', { jobId, category: selectedCategory }, (response) => {
-                    // Callback function to handle server acknowledgment
                     if (response.success) {
-                        // Find the job element
                         const jobElement = document.querySelector(`[data-job-id="${jobId}"]`);
-
                         if (jobElement) {
-                            // Find the existing assigned category element
-                            let assignedCategoryElement = jobElement.querySelector('.assigned-category');
-                            
-                            // If it doesn't exist, create it
-                            if (!assignedCategoryElement) {
-                                assignedCategoryElement = document.createElement('div');
-                                assignedCategoryElement.innerHTML = `<strong>Assigned category:</strong> <span class="assigned-category"></span>`;
-                                jobElement.appendChild(assignedCategoryElement);
-                            }
-
-                            // Update the assigned category text
-                            assignedCategoryElement.querySelector('span').textContent = Array.from(categories).find(([id]) => id === selectedCategory)[1];
+                            const assignedCategoryElement = jobElement.querySelector('.assigned-category');
+                            assignedCategoryElement.textContent = Array.from(categories).find(([id]) => id === selectedCategory)[1];
                         }
                     } else {
                         console.error('Failed to update category:', response.error);
                     }
                 });
 
-                // Disable the confirm button after submission
                 event.target.disabled = true;
             }
         }
     });
 
-    // Fetch categories when the page loads
     fetchCategories();
 </script>
 </body>
