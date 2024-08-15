@@ -39,7 +39,7 @@ export default class OpenAiService {
 
             if (!categories.includes(guess)) {
                 console.warn(`OpenAI could not classify the transaction.\nPrompt: ${prompt}\nOpenAI's guess: ${guess}`);
-                return null;
+                return { category: null, prompt, response: guess }; // Return null for category
             }
 
             return {
