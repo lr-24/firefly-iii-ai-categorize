@@ -103,7 +103,7 @@
             </div>
             <div><strong>Destination name:</strong> <span>${job.data?.destinationName || ''}</span></div>
             <div><strong>Description:</strong> <span>${job.data?.description || ''}</span></div>
-            <div><strong>Guessed category:</strong> <span>${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
+            <div><strong>Guessed category:</strong> <span data-job-id="${job.id}" class="guessed-category">${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
             ${ job.data?.prompt ? `<div><strong>Prompt:</strong><br>
                 <details>
                     <summary>Show</summary>
@@ -127,17 +127,14 @@
     }
 
     const updateJobList = (jobs) => {
-        jobs.sort((a, b) => {
-            return new Date(b.created) - new Date(a.created);
-        });
-
         mount.innerHTML = ''; // Clear existing content
 
-        jobs.forEach(job => {
-            const element = document.createElement('div');
-            element.innerHTML = renderJob(job);
-            mount.appendChild(element);
-        });
+        jobs.sort((a, b) => new Date(b.created) - new Date(a.created))
+            .forEach(job => {
+                const element = document.createElement('div');
+                element.innerHTML = renderJob(job);
+                mount.appendChild(element);
+            });
     };
 
     socket.on('jobs', jobs => {
@@ -154,11 +151,12 @@
 
     socket.on('job updated', e => {
         console.log('job updated', e);
-        const element = document.createElement('div');
-        element.innerHTML = renderJob(e.job);
         const oldElement = document.querySelector(`[data-job-id="${e.job.id}"]`);
-        oldElement.before(element);
-        oldElement.remove();
+        if (oldElement) {
+            const newElement = document.createElement('div');
+            newElement.innerHTML = renderJob(e.job);
+            oldElement.replaceWith(newElement);
+        }
     });
 
     mount.addEventListener('change', event => {
@@ -168,11 +166,7 @@
             const confirmButton = document.querySelector(`.confirm-btn[data-job-id="${jobId}"]`);
             
             // Enable the confirm button if a category is selected
-            if (selectedCategory) {
-                confirmButton.disabled = false;
-            } else {
-                confirmButton.disabled = true;
-            }
+            confirmButton.disabled = !selectedCategory;
         }
     });
 
@@ -184,7 +178,16 @@
 
             if (selectedCategory) {
                 // Emit the event to the server with the updated category
-                socket.emit('update job category', { jobId, category: selectedCategory });
+                socket.emit('update job category', { jobId, category: selectedCategory }, (response) => {
+                    // Callback function to handle server acknowledgment
+                    if (response.success) {
+                        // Update the "Guessed category" on the UI
+                        const guessedCategoryElement = document.querySelector(`.guessed-category[data-job-id="${jobId}"]`);
+                        guessedCategoryElement.textContent = Array.from(categories).find(([id]) => id === selectedCategory)[1];
+                    } else {
+                        console.error('Failed to update category:', response.error);
+                    }
+                });
 
                 // Disable the confirm button after submission
                 event.target.disabled = true;
