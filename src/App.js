@@ -152,27 +152,46 @@ export default class App {
         });
 
         this.#queue.push(async () => {
-            this.#jobList.setJobInProgress(job.id);
+            try {
+                // Mark the job as in progress
+                this.#jobList.setJobInProgress(job.id);
 
-            const categories = await this.#firefly.getCategories();
+                // Retrieve categories from Firefly service
+                const categories = await this.#firefly.getCategories();
 
-            const { category, prompt, response } = await this.#openAi.classify(Array.from(categories.keys()), destinationName, cleanedDescription);
+                // Classify the job using OpenAI service
+                const { category, prompt, response } = await this.#openAi.classify(
+                    Array.from(categories.keys()),
+                    destinationName,
+                    cleanedDescription
+                );
 
-            const newData = {
-                ...job.data,
-                category,
-                prompt,
-                response,
-                categories: Array.from(categories.entries())
-            };
+                // Handle classification results
+                if (!category) {
+                    console.warn('Classification failed. Setting job to human input.');
+                    this.#jobList.setJobHumanInput(job.id);
+                    return; // Exit the task as no further processing is needed
+                }
 
-            this.#jobList.updateJobData(job.id, newData);
+                // Update job with new data including the category
+                const newData = {
+                    ...job.data,
+                    category,
+                    prompt,
+                    response,
+                    categories: Array.from(categories.entries())
+                };
 
-            if (category) {
+                this.#jobList.updateJobData(job.id, newData);
+
+                // Set the category for the transaction and mark the job as finished
                 await this.#firefly.setCategory(req.body.content.id, req.body.content.transactions, categories.get(category));
                 this.#jobList.setJobFinished(job.id);
-            } else {
-                this.#jobList.setJobHumanInput(job.id);
+
+            } catch (err) {
+                // Log the detailed error and mark the job as failed
+                console.error('Job processing failed:', err);
+                this.#jobList.setJobFailed(job.id, err.message);
             }
         });
     }
