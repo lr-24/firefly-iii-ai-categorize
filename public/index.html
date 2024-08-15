@@ -37,6 +37,25 @@
             background: #eeeeee;
             overflow-x: auto;
         }
+
+        select {
+            margin: 5px 0;
+        }
+
+        .confirm-btn {
+            margin-top: 10px;
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .confirm-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -45,26 +64,6 @@
     <section>
         <h2>Jobs</h2>
         <div id="mount"></div>
-<!--        <article class="job">-->
-<!--            <div><strong>Status:</strong> <span>queued</span></div>-->
-<!--            <div><strong>Created:</strong>-->
-<!--                <time>2023-05-21 15:50:00</time>-->
-<!--            </div>-->
-<!--            <div><strong>Webhook UUID:</strong> <span>34zrurjd-44df-we4dtfds</span></div>-->
-<!--            <div><strong>Destination name:</strong> <span>LIEFERANDO.DE LIEFERSERVI</span></div>-->
-<!--            <div><strong>Description:</strong> <span>LIEFERANDO.DE LIEFERSERVI; AMSTERDAM NL; KARTE 8338; 40010075001 16052023; KDN-REF 000000986464</span>-->
-<!--            </div>-->
-<!--            <div><strong>Prompt:</strong><br>-->
-<!--                <pre>Given i want to categorize transactions on my bank account into this categories: Bargeld, Gas, Haushalt, Kino, Lebensmittel, Lieferdienst, ÖPNV, Restaurants, Rundfunkbeitrag, Strom-->
-<!--In which category would a transaction from "LIEFERANDO.DE LIEFERSERVI" with the subject "LIEFERANDO.DE LIEFERSERVI; AMSTERDAM NL; KARTE 8338; 40010075001 16052023; KDN-REF 000000986464" fall into?-->
-<!--Just output the name of the category. Does not have to be a complete sentence.</pre>-->
-<!--            </div>-->
-<!--            <div><strong>Open AI's guess:</strong><br>-->
-<!--                <pre>-->
-<!--Lieferdienst-->
-<!--</pre>-->
-<!--            </div>-->
-<!--        </article>-->
     </section>
 </div>
 
@@ -107,6 +106,8 @@
     })
 
     const renderJob = (job) => {
+        const categoryOptions = ['A', 'B', 'C', 'D'].map(cat => `<option value="${cat}">${cat}</option>`).join('');
+
         return `<article class="job" data-job-id="${job.id}">
             <div><strong>ID:</strong> <span>${job.id}</span></div>
             <div><strong>Status:</strong> <span>${job.status}</span></div>
@@ -117,9 +118,8 @@
         }).format(new Date(job.created))}</time>
             </div>
             <div><strong>Destination name:</strong> <span>${job.data?.destinationName || ''}</span></div>
-            <div><strong>Description:</strong> <span>${job.data?.description || ''}</span>
-            <div><strong>Guessed category:</strong> <span>${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span>
-            </div>
+            <div><strong>Description:</strong> <span>${job.data?.description || ''}</span></div>
+            <div><strong>Guessed category:</strong> <span>${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
             ${ job.data?.prompt ? `<div><strong>Prompt:</strong><br>
                 <details>
                     <summary>Show</summary>
@@ -132,8 +132,46 @@
                     <pre>${job.data.response}</pre>
                  </details>
             </div>` : ''}
-        </article>`
+            ${ job.status === 'human_input' ? `<div><strong>Category:</strong>
+                <select data-job-id="${job.id}" class="category-select">
+                    <option value="">Select a category</option>
+                    ${categoryOptions}
+                </select>
+                <button class="confirm-btn" data-job-id="${job.id}" disabled>Confirm</button>
+            </div>` : ''}
+        </article>`;
     }
+
+    mount.addEventListener('change', event => {
+        if (event.target.classList.contains('category-select')) {
+            const jobId = event.target.getAttribute('data-job-id');
+            const selectedCategory = event.target.value;
+            const confirmButton = document.querySelector(`.confirm-btn[data-job-id="${jobId}"]`);
+            
+            // Enable the confirm button if a category is selected
+            if (selectedCategory) {
+                confirmButton.disabled = false;
+            } else {
+                confirmButton.disabled = true;
+            }
+        }
+    });
+
+    mount.addEventListener('click', event => {
+        if (event.target.classList.contains('confirm-btn')) {
+            const jobId = event.target.getAttribute('data-job-id');
+            const categorySelect = document.querySelector(`.category-select[data-job-id="${jobId}"]`);
+            const selectedCategory = categorySelect.value;
+
+            if (selectedCategory) {
+                // Emit the event to the server with the updated category
+                socket.emit('update job category', { jobId, category: selectedCategory });
+
+                // Disable the confirm button after submission
+                event.target.disabled = true;
+            }
+        }
+    });
 </script>
 </body>
 </html>
