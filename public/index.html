@@ -103,7 +103,7 @@
             </div>
             <div><strong>Destination name:</strong> <span>${job.data?.destinationName || ''}</span></div>
             <div><strong>Description:</strong> <span>${job.data?.description || ''}</span></div>
-            <div><strong>Guessed category:</strong> <span class="guessed-category">${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
+            <div><strong>Guessed category:</strong> <span>${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
             ${ job.data?.prompt ? `<div><strong>Prompt:</strong><br>
                 <details>
                     <summary>Show</summary>
@@ -183,10 +183,6 @@
             const selectedCategory = categorySelect.value;
 
             if (selectedCategory) {
-                // Update the UI immediately
-                const guessedCategorySpan = document.querySelector(`.job[data-job-id="${jobId}"] .guessed-category`);
-                guessedCategorySpan.innerHTML = categories.get(selectedCategory) || '<em>Not yet classified</em>';
-
                 // Emit the event to the server with the updated category
                 socket.emit('update job category', { jobId, category: selectedCategory });
 
