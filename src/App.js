@@ -6,6 +6,7 @@ import { Server } from 'socket.io';
 import http from 'http';
 import Queue from 'queue';
 import JobList from './JobList.js';
+import winston from 'winston';
 
 export default class App {
     #PORT;
@@ -21,9 +22,23 @@ export default class App {
     #queue;
     #jobList;
 
+    #logger;
+
     constructor() {
         this.#PORT = getConfigVariable('PORT', '3000');
         this.#ENABLE_UI = getConfigVariable('ENABLE_UI', 'false') === 'true';
+
+        // Configure logging
+        this.#logger = winston.createLogger({
+            level: 'info',
+            format: winston.format.combine(
+                winston.format.timestamp(),
+                winston.format.json()
+            ),
+            transports: [
+                new winston.transports.Console(),
+            ],
+        });
     }
 
     async run() {
@@ -36,10 +51,10 @@ export default class App {
             autostart: true
         });
 
-        this.#queue.addEventListener('start', job => console.log('Job started', job));
-        this.#queue.addEventListener('success', event => console.log('Job success', event.job));
-        this.#queue.addEventListener('error', event => console.error('Job error', event.job, event.err, event));
-        this.#queue.addEventListener('timeout', event => console.log('Job timeout', event.job));
+        this.#queue.addEventListener('start', job => this.#logger.info('Job started', { job }));
+        this.#queue.addEventListener('success', event => this.#logger.info('Job success', { job: event.job }));
+        this.#queue.addEventListener('error', event => this.#logger.error('Job error', { job: event.job, error: event.err }));
+        this.#queue.addEventListener('timeout', event => this.#logger.warn('Job timeout', { job: event.job }));
 
         this.#express = express();
         this.#server = http.createServer(this.#express);
@@ -59,22 +74,22 @@ export default class App {
         this.#express.post('/category_input', this.#onCategoryInput.bind(this));
 
         this.#server.listen(this.#PORT, () => {
-            console.log(`Application running on port ${this.#PORT}`);
+            this.#logger.info(`Application running on port ${this.#PORT}`);
         });
 
         this.#io.on('connection', socket => {
-            console.log('Client connected');
+            this.#logger.info('Client connected');
             socket.emit('jobs', Array.from(this.#jobList.getJobs().values()));
         });
     }
 
     async #onWebhook(req, res) {
         try {
-            console.info('Webhook triggered');
+            this.#logger.info('Webhook triggered');
             await this.#handleWebhook(req, res);
             res.send('Queued');
         } catch (e) {
-            console.error('Error handling webhook:', e.message);
+            this.#logger.error('Error handling webhook:', { error: e.message });
             res.status(400).send(e.message);
         }
     }
@@ -157,7 +172,7 @@ export default class App {
                 this.#jobList.updateJobData(job.id, newData);
 
                 if (!category) {
-                    console.log('Requesting category input for job:', job.id);
+                    this.#logger.info('Requesting category input for job:', { jobId: job.id });
                     this.#io.emit('request-category-input', {
                         transactionId: req.body.content.id,
                         description: cleanedDescription,
@@ -165,13 +180,13 @@ export default class App {
                         categories: Array.from(categories.keys())
                     });
                 } else {
-                    console.log('Setting category for job:', job.id);
+                    this.#logger.info('Setting category for job:', { jobId: job.id });
                     await this.#firefly.setCategory(req.body.content.id, job.data.transactions, categories.get(category));
                 }
 
                 this.#jobList.setJobFinished(job.id);
             } catch (e) {
-                console.error('Error processing job:', job.id, e.message);
+                this.#logger.error('Error processing job:', { jobId: job.id, error: e.message });
                 this.#jobList.setJobFailed(job.id);
             }
         });
@@ -185,10 +200,11 @@ export default class App {
                 throw new Error('Transaction ID and category are required.');
             }
 
+            this.#logger.info('Handling category input:', { transactionId, category });
             await this.#handleCategoryInput(transactionId, category);
             res.send('Category recorded.');
         } catch (e) {
-            console.error('Error handling category input:', e.message);
+            this.#logger.error('Error handling category input:', { error: e.message });
             res.status(400).send(e.message);
         }
     }
