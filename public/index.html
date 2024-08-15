@@ -96,8 +96,8 @@
             jobDiv.className = 'job';
             jobDiv.innerHTML = `
                 <h3>Job ID: ${job.id}</h3>
-                <p><strong>Description:</strong> ${job.description}</p>
-                <p><strong>Destination:</strong> ${job.destinationName}</p>
+                <p><strong>Description:</strong> ${job.description || 'No description available'}</p>
+                <p><strong>Destination:</strong> ${job.destinationName || 'No destination available'}</p>
             `;
             mount.appendChild(jobDiv);
         });
@@ -145,3 +145,5 @@
         });
     });
 </script>
+</body>
+</html>
