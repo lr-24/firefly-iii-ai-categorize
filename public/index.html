@@ -60,12 +60,11 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-    let socket = io();
-
+    const socket = io();
     const mount = document.getElementById('mount');
 
     socket.on('jobs', jobs => {
-        console.log('jobs', jobs);
+        console.log('Received jobs:', jobs);
         jobs.sort((a, b) => new Date(b.created) - new Date(a.created));
         jobs.forEach(job => {
             const element = document.createElement('div');
@@ -75,14 +74,14 @@
     });
 
     socket.on('job created', e => {
-        console.log('job created', e);
+        console.log('Job created:', e);
         const element = document.createElement('div');
         element.innerHTML = renderJob(e.job);
         mount.prepend(element);
     });
 
     socket.on('job updated', e => {
-        console.log('job updated', e);
+        console.log('Job updated:', e);
         const element = document.createElement('div');
         element.innerHTML = renderJob(e.job);
         const oldElement = document.querySelector(`[data-job-id="${e.job.id}"]`);
@@ -92,7 +91,17 @@
 
     socket.on('request-category-input', data => {
         console.log('Received request for category input:', data);
+
+        // Ensure categories is an array
+        const categories = Array.isArray(data.categories) ? data.categories : [];
         
+        // Check if a form for this transaction already exists
+        const existingForm = document.getElementById(`form-${data.transactionId}`);
+        if (existingForm) {
+            console.log('Form for this transaction already exists.');
+            return;
+        }
+
         // Create and insert the form for manual category input
         const formContainer = document.createElement('div');
         formContainer.classList.add('category-form');
@@ -106,7 +115,7 @@
                 <label for="prompt-${data.transactionId}">Prompt:</label>
                 <pre id="prompt-${data.transactionId}">${data.prompt}</pre>
                 <label for="categories-${data.transactionId}">Category:</label>
-                <select id="categories-${data.transactionId}" name="category"></select>
+                <select id="categories-${data.transactionId}" name="category" required></select>
                 <button type="submit">Submit</button>
             </form>
         `;
@@ -114,7 +123,7 @@
 
         // Populate category options
         const categoriesSelect = document.getElementById(`categories-${data.transactionId}`);
-        data.categories.forEach(category => {
+        categories.forEach(category => {
             const option = document.createElement('option');
             option.value = category;
             option.textContent = category;
@@ -134,18 +143,25 @@
             }
 
             try {
-                await fetch('/category_input', {
+                const response = await fetch('/category_input', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ transactionId, category })
                 });
-                // Remove the form after submission
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText);
+                }
+
+                // Remove the form after successful submission
                 form.parentElement.remove();
                 console.log('Category input submitted successfully');
             } catch (error) {
                 console.error('Error submitting category input:', error);
+                alert('Error submitting category. Please try again.');
             }
         });
     });
