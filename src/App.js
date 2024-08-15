@@ -63,15 +63,15 @@ export default class App {
         });
 
         this.#io.on('connection', socket => {
-            console.log('connected');
+            console.log('Client connected');
             socket.emit('jobs', Array.from(this.#jobList.getJobs().values()));
         });
     }
 
-    #onWebhook(req, res) {
+    async #onWebhook(req, res) {
         try {
             console.info('Webhook triggered');
-            this.#handleWebhook(req, res);
+            await this.#handleWebhook(req, res);
             res.send('Queued');
         } catch (e) {
             console.error(e);
@@ -97,37 +97,28 @@ export default class App {
         }
 
         if (req.body?.trigger !== 'UPDATE_TRANSACTION') {
-            throw new WebhookException('Trigger is not UPDATE_TRANSACTION. Request will not be processed.');
+            throw new WebhookException('trigger is not UPDATE_TRANSACTION. Request will not be processed');
         }
 
         if (req.body?.response !== 'TRANSACTIONS') {
-            throw new WebhookException('Response is not TRANSACTIONS. Request will not be processed.');
+            throw new WebhookException('response is not TRANSACTIONS. Request will not be processed');
         }
 
-        if (!req.body?.content?.id) {
-            throw new WebhookException('Missing content.id');
+        const transaction = req.body?.content?.transactions?.[0];
+        if (!transaction) {
+            throw new WebhookException('No transaction data available');
         }
-
-        if (!req.body?.content?.transactions || req.body.content.transactions.length === 0) {
-            throw new WebhookException('No transactions are available in content.transactions');
-        }
-
-        const transaction = req.body.content.transactions[0];
 
         if (!['withdrawal', 'deposit'].includes(transaction.type)) {
-            throw new WebhookException('content.transactions[0].type must be "withdrawal" or "deposit". Transaction will be ignored.');
+            throw new WebhookException('Transaction type must be \'withdrawal\' or \'deposit\'. Transaction will be ignored.');
         }
 
         if (transaction.category_id !== null) {
-            throw new WebhookException('content.transactions[0].category_id is already set. Transaction will be ignored.');
+            throw new WebhookException('Transaction category_id is already set. Transaction will be ignored.');
         }
 
-        if (!transaction.description) {
-            throw new WebhookException('Missing content.transactions[0].description');
-        }
-
-        if (!transaction.destination_name) {
-            throw new WebhookException('Missing content.transactions[0].destination_name');
+        if (!transaction.description || !transaction.destination_name) {
+            throw new WebhookException('Missing description or destination_name in transaction');
         }
 
         const destinationName = transaction.destination_name;
@@ -139,7 +130,7 @@ export default class App {
             description: cleanedDescription
         });
 
-        this.#queue.push(async () => {
+        await this.#queue.push(async () => {
             this.#jobList.setJobInProgress(job.id);
 
             const categories = await this.#firefly.getCategories();
@@ -162,24 +153,22 @@ export default class App {
                     categories: Array.from(categories.keys())
                 });
             } else {
-                await this.#firefly.setCategory(req.body.content.id, req.body.content.transactions, categories.get(category));
+                await this.#firefly.setCategory(req.body.content.id, job.data.transactions, categories.get(category));
             }
 
             this.#jobList.setJobFinished(job.id);
         });
     }
 
-    #onCategoryInput(req, res) {
+    async #onCategoryInput(req, res) {
         try {
-            const { transactionId, categoryId } = req.body;
+            const { transactionId, category } = req.body;
 
-            if (!transactionId || !categoryId) {
-                throw new Error('Transaction ID and category ID are required.');
+            if (!transactionId || !category) {
+                throw new Error('Transaction ID and category are required.');
             }
 
-            // Process and store the user-provided category
-            this.#handleCategoryInput(transactionId, categoryId);
-
+            await this.#handleCategoryInput(transactionId, category);
             res.send('Category recorded.');
         } catch (e) {
             console.error(e);
@@ -187,22 +176,21 @@ export default class App {
         }
     }
 
-    #handleCategoryInput(transactionId, categoryId) {
-        // Fetch the transactions list to pass to setCategory
-        const transactions = this.#jobList.getJobById(transactionId)?.transactions;
+    async #handleCategoryInput(transactionId, category) {
+        const categories = await this.#firefly.getCategories();
+        const categoryId = categories.get(category);
 
-        if (!transactions) {
-            throw new Error('Transactions not found for the given transaction ID.');
+        if (!categoryId) {
+            throw new Error('Invalid category.');
         }
 
-        // Call setCategory with the appropriate arguments
-        this.#firefly.setCategory(transactionId, transactions, categoryId);
+        await this.#firefly.setCategory(transactionId, [], categoryId); // Assuming the transactions array is empty or managed separately
     }
 }
 
 class WebhookException extends Error {
     constructor(message) {
         super(message);
-        this.name = 'WebhookException'; // Add a name to the error
+        this.name = 'WebhookException';
     }
 }
