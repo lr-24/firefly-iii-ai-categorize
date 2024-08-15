@@ -70,43 +70,27 @@
 <script src="/socket.io/socket.io.js"></script>
 <script>
     let socket = io();
-
     const mount = document.getElementById('mount');
+    let categories = new Map(); // To store categories fetched from the server
 
-    socket.on('jobs', jobs => {
-        console.log('jobs', jobs);
+    // Fetch categories from the server and store them in the `categories` Map
+    async function fetchCategories() {
+        try {
+            const response = await fetch('/categories');
+            const data = await response.json();
+            categories = new Map(data.categories.map(cat => [cat.id, cat.name]));
+        } catch (error) {
+            console.error('Error fetching categories:', error);
+        }
+    }
 
-        jobs.sort((a, b) => {
-            return new Date(b.created) - new Date(a.created);
-        })
-
-        jobs.forEach(job => {
-            const element = document.createElement('div');
-            element.innerHTML = renderJob(job);
-            mount.appendChild(element)
-        });
-    });
-
-    socket.on('job created', e => {
-        console.log('job created', e);
-        const element = document.createElement('div');
-        element.innerHTML = renderJob(e.job);
-        mount.prepend(element);
-    })
-
-    socket.on('job updated', e => {
-        console.log('job updated', e)
-
-        const element = document.createElement('div');
-        element.innerHTML = renderJob(e.job);
-
-        const oldElement = document.querySelector(`[data-job-id="${e.job.id}"]`);
-        oldElement.before(element);
-        oldElement.remove();
-    })
+    // Render the category options based on fetched categories
+    const renderCategoryOptions = () => {
+        return Array.from(categories).map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
+    };
 
     const renderJob = (job) => {
-        const categoryOptions = ['A', 'B', 'C', 'D'].map(cat => `<option value="${cat}">${cat}</option>`).join('');
+        const categoryOptions = renderCategoryOptions();
 
         return `<article class="job" data-job-id="${job.id}">
             <div><strong>ID:</strong> <span>${job.id}</span></div>
@@ -142,6 +126,41 @@
         </article>`;
     }
 
+    const updateJobList = (jobs) => {
+        jobs.sort((a, b) => {
+            return new Date(b.created) - new Date(a.created);
+        });
+
+        mount.innerHTML = ''; // Clear existing content
+
+        jobs.forEach(job => {
+            const element = document.createElement('div');
+            element.innerHTML = renderJob(job);
+            mount.appendChild(element);
+        });
+    };
+
+    socket.on('jobs', jobs => {
+        console.log('jobs', jobs);
+        updateJobList(jobs);
+    });
+
+    socket.on('job created', e => {
+        console.log('job created', e);
+        const element = document.createElement('div');
+        element.innerHTML = renderJob(e.job);
+        mount.prepend(element);
+    });
+
+    socket.on('job updated', e => {
+        console.log('job updated', e);
+        const element = document.createElement('div');
+        element.innerHTML = renderJob(e.job);
+        const oldElement = document.querySelector(`[data-job-id="${e.job.id}"]`);
+        oldElement.before(element);
+        oldElement.remove();
+    });
+
     mount.addEventListener('change', event => {
         if (event.target.classList.contains('category-select')) {
             const jobId = event.target.getAttribute('data-job-id');
@@ -172,6 +191,9 @@
             }
         }
     });
+
+    // Fetch categories when the page loads
+    fetchCategories();
 </script>
 </body>
 </html>
