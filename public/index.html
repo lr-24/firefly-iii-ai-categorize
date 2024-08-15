@@ -4,40 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Firefly III AI Categorizer</title>
+    <title>FireflyService III AI Categorizer</title>
     <style>
         body {
             font-family: sans-serif;
             background: lightgray;
         }
-
         .container {
-            max-width: 80%;
+            max-width: max(80%, 1024px);
             margin: 5% auto;
             padding: 24px;
             background: #FFF;
             border-radius: 5px;
             box-shadow: 0 0 5px rgba(0, 0, 0, .25);
         }
-
         h1 {
             text-align: center;
         }
-
         .job {
             border: solid 1px;
             border-radius: 5px;
             margin-bottom: 2em;
             padding: 24px;
-            background: #f9f9f9;
         }
-
         pre {
             padding: 7px;
             background: #eeeeee;
             overflow-x: auto;
         }
-
         #category-form {
             display: none;
             margin-top: 20px;
@@ -46,12 +40,10 @@
             border-radius: 5px;
             background: #f9f9f9;
         }
-
         #category-form select,
         #category-form button {
             margin-top: 10px;
         }
-
         #category-form label {
             display: block;
             margin-top: 10px;
@@ -85,117 +77,8 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-    let socket = io();
+    const socket = io();
 
     const mount = document.getElementById('mount');
     const categoryForm = document.getElementById('category-form');
-    const manualCategoryForm = document.getElementById('manual-category-form');
-
-    socket.on('jobs', jobs => {
-        console.log('jobs', jobs);
-
-        jobs.sort((a, b) => {
-            return new Date(b.created) - new Date(a.created);
-        });
-
-        jobs.forEach(job => {
-            const element = document.createElement('div');
-            element.innerHTML = renderJob(job);
-            mount.appendChild(element);
-        });
-    });
-
-    socket.on('job created', e => {
-        console.log('job created', e);
-        const element = document.createElement('div');
-        element.innerHTML = renderJob(e.job);
-        mount.prepend(element);
-    });
-
-    socket.on('job updated', e => {
-        console.log('job updated', e);
-
-        const element = document.createElement('div');
-        element.innerHTML = renderJob(e.job);
-
-        const oldElement = document.querySelector(`[data-job-id="${e.job.id}"]`);
-        if (oldElement) {
-            oldElement.before(element);
-            oldElement.remove();
-        }
-    });
-
-    socket.on('request-category-input', data => {
-        document.getElementById('transaction-id').value = data.transactionId;
-        document.getElementById('description').textContent = data.description;
-        document.getElementById('query').textContent = data.prompt;
-
-        const categorySelect = document.getElementById('category');
-        categorySelect.innerHTML = '';
-        data.categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category;
-            option.textContent = category;
-            categorySelect.appendChild(option);
-        });
-
-        categoryForm.style.display = 'block';
-    });
-
-    manualCategoryForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        try {
-            const response = await fetch('/category_input', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    transactionId: document.getElementById('transaction-id').value,
-                    category: document.getElementById('category').value,
-                }),
-            });
-
-            if (response.ok) {
-                alert('Category submitted');
-                categoryForm.style.display = 'none';
-            } else {
-                const errorText = await response.text();
-                alert(`Failed to submit category: ${errorText}`);
-            }
-        } catch (e) {
-            console.error('Error submitting category:', e);
-            alert('An error occurred while submitting the category.');
-        }
-    });
-
-    const renderJob = (job) => {
-        return `<article class="job" data-job-id="${job.id}">
-            <div><strong>ID:</strong> <span>${job.id}</span></div>
-            <div><strong>Status:</strong> <span>${job.status}</span></div>
-            <div><strong>Created:</strong>
-                <time>${Intl.DateTimeFormat(undefined, {
-            dateStyle: 'medium',
-            timeStyle: 'medium'
-        }).format(new Date(job.created))}</time>
-            </div>
-            <div><strong>Destination name:</strong> <span>${job.data?.destinationName || ''}</span></div>
-            <div><strong>Description:</strong> <span>${job.data?.description || ''}</span></div>
-            <div><strong>Guessed category:</strong> <span>${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
-            ${ job.data?.prompt ? `<div><strong>Prompt:</strong><br>
-                <details>
-                    <summary>Show</summary>
-                    <pre>${job.data.prompt}</pre>
-                </details>
-            </div>` : ''}
-            ${ job.data?.response ? `<div><strong>Open AI's response:</strong>
-                 <details>
-                    <summary>Show</summary>
-                    <pre>${job.data.response}</pre>
-                 </details>
-            </div>` : ''}
-        </article>`;
-    }
-</script>
-</body>
-</html>
+    const manualCategoryForm = document.getElementById('manual-category
