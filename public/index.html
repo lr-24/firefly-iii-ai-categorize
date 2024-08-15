@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Firefly III AI Categorizer</title>
     <style>
@@ -65,15 +64,13 @@
     socket.on('jobs', jobs => {
         console.log('jobs', jobs);
 
-        jobs.sort((a, b) => {
-            return new Date(b.created) - new Date(a.created);
-        })
+        jobs.sort((a, b) => new Date(b.created) - new Date(a.created));
 
         mount.innerHTML = '';
         jobs.forEach(job => {
             const element = document.createElement('div');
             element.innerHTML = renderJob(job);
-            mount.appendChild(element)
+            mount.appendChild(element);
         });
     });
 
@@ -82,17 +79,21 @@
         const element = document.createElement('div');
         element.innerHTML = renderJob(e.job);
         mount.prepend(element);
-    })
+    });
 
     socket.on('job updated', e => {
-        console.log('job updated', e)
+        console.log('job updated', e);
 
         const element = document.createElement('div');
         element.innerHTML = renderJob(e.job);
 
         const oldElement = document.querySelector(`[data-job-id="${e.job.id}"]`);
-        oldElement.replaceWith(element);
-    })
+        if (oldElement) {
+            oldElement.replaceWith(element);
+        } else {
+            mount.appendChild(element);
+        }
+    });
 
     const renderJob = (job) => {
         return `<article class="job" data-job-id="${job.id}">
@@ -100,29 +101,28 @@
             <div><strong>Status:</strong> <span>${job.status}</span></div>
             <div><strong>Created:</strong>
                 <time>${Intl.DateTimeFormat(undefined, {
-            dateStyle: 'medium',
-            timeStyle: 'medium'
-        }).format(new Date(job.created))}</time>
+                    dateStyle: 'medium',
+                    timeStyle: 'medium'
+                }).format(new Date(job.created))}</time>
             </div>
             <div><strong>Destination name:</strong> <span>${job.data?.destinationName || ''}</span></div>
-            <div><strong>Description:</strong> <span>${job.data?.description || ''}</span>
-            <div><strong>Guessed category:</strong> <span>${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span>
-            </div>
-            ${ job.data?.prompt ? `<div><strong>Prompt:</strong><br>
+            <div><strong>Description:</strong> <span>${job.data?.description || ''}</span></div>
+            <div><strong>Guessed category:</strong> <span>${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
+            ${job.data?.prompt ? `<div><strong>Prompt:</strong><br>
                 <details>
                     <summary>Show</summary>
                     <pre>${job.data.prompt}</pre>
                 </details>
             </div>` : ''}
-            ${ job.data?.response ? `<div><strong>Open AI's response:</strong>
-                 <details>
+            ${job.data?.response ? `<div><strong>Open AI's response:</strong>
+                <details>
                     <summary>Show</summary>
                     <pre>${job.data.response}</pre>
-                 </details>
+                </details>
             </div>` : ''}
             ${job.status === 'human_input' ? renderCategoryForm(job) : ''}
-        </article>`
-    }
+        </article>`;
+    };
 
     const renderCategoryForm = (job) => {
         return `
@@ -133,12 +133,12 @@
                 <button onclick="setCategory('${job.id}')">Set Category</button>
             </div>
         `;
-    }
+    };
 
     const setCategory = async (jobId) => {
         const select = document.getElementById(`category-select-${jobId}`);
         const categoryId = select.value;
-        
+
         try {
             const response = await fetch('/set-category', {
                 method: 'POST',
@@ -157,7 +157,7 @@
             console.error('Error setting category:', error);
             alert('Failed to set category. Please try again.');
         }
-    }
+    };
 </script>
 </body>
 </html>
