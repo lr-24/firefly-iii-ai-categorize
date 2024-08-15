@@ -57,6 +57,17 @@ export default class App {
 
         this.#express.post('/webhook', this.#onWebhook.bind(this));
 
+        this.#express.post('/set-category', async (req, res) => {
+            try {
+                const { jobId, categoryId } = req.body;
+                await this.setCategory(jobId, categoryId);
+                res.sendStatus(200);
+            } catch (error) {
+                console.error('Error setting category:', error);
+                res.status(400).send(error.message);
+            }
+        });
+
         this.#server.listen(this.#PORT, () => {
             console.log(`Application running on port ${this.#PORT}`);
         });
@@ -79,25 +90,20 @@ export default class App {
     }
 
     #handleWebhook(req, res) {
-        // Define the list of regex patterns to remove
         const exactSubstringsToRemove = [
-            /PAGAMENTO POS\b/i, // Exact match for 'PAGAMENTO POS'
-            /CRV\*/i, // Exact match for 'CRV*'
-            /VILNIUS IRL.*$/i, // Remove 'VILNIUS IRL' and everything following it
-            /DUBLIN IRL.*$/i, // Remove 'DUBLIN IRL' and everything following it
-            /OPERAZIONE.*$/i // Remove 'OPERAZIONE' and everything following it
+            /PAGAMENTO POS\b/i,
+            /CRV\*/i,
+            /VILNIUS IRL.*$/i,
+            /DUBLIN IRL.*$/i,
+            /OPERAZIONE.*$/i
         ];
 
-        // Helper function to remove specific substrings using regex patterns
         function removeSubstrings(description, regexPatterns) {
             let result = description;
-
-            // Apply each regex pattern to remove substrings
             regexPatterns.forEach(pattern => {
                 result = result.replace(pattern, '');
             });
-
-            return result.trim(); // Trim any extra spaces from the result
+            return result.trim();
         }
 
         // Validate request
@@ -136,12 +142,13 @@ export default class App {
         const destinationName = req.body.content.transactions[0].destination_name;
         const description = req.body.content.transactions[0].description;
 
-        // Remove specific substrings from the description
         const cleanedDescription = removeSubstrings(description, exactSubstringsToRemove);
 
         const job = this.#jobList.createJob({
             destinationName,
-            description: cleanedDescription
+            description: cleanedDescription,
+            transactionId: req.body.content.id,
+            transactions: req.body.content.transactions
         });
 
         this.#queue.push(async () => {
@@ -155,17 +162,29 @@ export default class App {
                 ...job.data,
                 category,
                 prompt,
-                response
+                response,
+                categories: Array.from(categories.entries())
             };
 
             this.#jobList.updateJobData(job.id, newData);
 
             if (category) {
                 await this.#firefly.setCategory(req.body.content.id, req.body.content.transactions, categories.get(category));
+                this.#jobList.setJobFinished(job.id);
+            } else {
+                this.#jobList.setJobHumanInput(job.id);
             }
-
-            this.#jobList.setJobFinished(job.id);
         });
+    }
+
+    async setCategory(jobId, categoryId) {
+        const job = this.#jobList.getJob(jobId);
+        if (!job || job.status !== 'human-input') {
+            throw new Error('Invalid job or job status');
+        }
+
+        await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId);
+        this.#jobList.setJobFinished(jobId);
     }
 }
 
