@@ -159,6 +159,7 @@ export default class App {
             /CRV\*/i,
             /VILNIUS IRL.*$/i,
             /DUBLIN IRL.*$/i,
+            /AMSTERDAM IRL.*$/i,
             /OPERAZIONE.*$/i
         ];
 
