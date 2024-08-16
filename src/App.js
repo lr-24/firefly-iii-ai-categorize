@@ -154,12 +154,13 @@ export default class App {
     }
 
     #handleWebhook(req, res) {
-        // Load regex patterns from environment variable
-        const regexPatternsString = process.env.REGEX_PATTERNS || '';
-        this.#exactSubstringsToRemove = regexPatternsString
-            .split('|')
-            .map(pattern => new RegExp(pattern, 'i'));
-        }
+        const exactSubstringsToRemove = [
+            /PAGAMENTO POS\b/i,
+            /CRV\*/i,
+            /VILNIUS IRL.*$/i,
+            /DUBLIN IRL.*$/i,
+            /OPERAZIONE.*$/i
+        ];
 
         function removeSubstrings(description, regexPatterns) {
             let result = description;
@@ -167,7 +168,7 @@ export default class App {
                 result = result.replace(pattern, '');
             });
             return result.trim();
-        }    
+        }
 
         // Validate request
         if (req.body?.trigger !== 'UPDATE_TRANSACTION') {
