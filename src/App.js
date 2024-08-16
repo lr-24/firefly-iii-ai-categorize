@@ -94,8 +94,6 @@ export default class App {
                     // Notify all clients of the updated job
                     const updatedJob = this.#jobList.getJob(jobId);
                     this.#io.emit('job updated', { job: updatedJob });
-                    // Optionally, emit the updated list of jobs
-                    this.#io.emit('jobs', Array.from(this.#jobList.getJobs().values()));
                 } catch (error) {
                     console.error('Error updating job category:', error);
                     socket.emit('error', { message: 'Failed to update category' });
