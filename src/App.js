@@ -107,31 +107,40 @@ export default class App {
         if (!job || job.status !== 'human_input') {
             throw new Error('Invalid job or job status');
         }
-
+    
         try {
             // Fetch categories from Firefly
             const categories = await this.#firefly.getCategories();
+    
+            // Convert categories to an array
+            const categoriesArray = Array.from(categories.entries()).map(([name, id]) => ({ name, id }));
+    
+            if (categoriesArray.length === 0) {
+                throw new Error('No categories found');
+            }
+    
             // Create a lookup map from categoryId to category name
             const categoryLookup = new Map();
-            categories.forEach(([name, id]) => {
+            categoriesArray.forEach(({ name, id }) => {
                 categoryLookup.set(id, name);
             });
-
+    
             // Get the category name for the provided categoryId
             const categoryName = categoryLookup.get(categoryId);
             if (!categoryName) {
-                throw new Error('Category ID not found');
+                throw new Error(`Category ID ${categoryId} not found`);
             }
-
+    
+            // Set the category in the job data
             await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId);
-            // Force job.data.category = categoryId
-            job.data.category = categoryName
+            job.data.category = categoryName;
             this.#jobList.setJobFinished(jobId);
         } catch (error) {
-            console.error('Error setting category in Firefly:', error);
+            console.error('Error updating job category:', error);
             throw error;
         }
     }
+
 
     #onWebhook(req, res) {
         try {
