@@ -109,9 +109,23 @@ export default class App {
         }
 
         try {
+            // Fetch categories from Firefly
+            const categories = await this.#firefly.getCategories();
+            // Create a lookup map from categoryId to category name
+            const categoryLookup = new Map();
+            categories.forEach(([name, id]) => {
+                categoryLookup.set(id, name);
+            });
+
+            // Get the category name for the provided categoryId
+            const categoryName = categoryLookup.get(categoryId);
+            if (!categoryName) {
+                throw new Error('Category ID not found');
+            }
+
             await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId);
             // Force job.data.category = categoryId
-            job.data.category = categoryId
+            job.data.category = categoryName
             this.#jobList.setJobFinished(jobId);
         } catch (error) {
             console.error('Error setting category in Firefly:', error);
