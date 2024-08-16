@@ -34,8 +34,8 @@ export default class FireflyService {
         return categories;
     }
 
-    async setCategory(transactionId, transactions, categoryId) {
-        const tag = getConfigVariable("FIREFLY_TAG", "AI categorized");
+    async setCategory(transactionId, transactions, categoryId, customTag = null) {
+        const tag = customTag || getConfigVariable("FIREFLY_TAG", "AI categorized");
 
         const body = {
             apply_rules: true,
