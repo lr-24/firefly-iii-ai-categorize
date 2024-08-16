@@ -91,9 +91,12 @@ export default class App {
             socket.on('update job category', async ({ jobId, category }) => {
                 try {
                     await this.setCategory(jobId, category);
-                    // Notify all clients of the updated job
+                    // Fetch the updated job
                     const updatedJob = this.#jobList.getJob(jobId);
+                    // Emit the updated job details to all clients
                     this.#io.emit('job updated', { job: updatedJob });
+                    // Optionally, acknowledge the client
+                    socket.emit('update confirmation', { success: true });
                 } catch (error) {
                     console.error('Error updating job category:', error);
                     socket.emit('error', { message: 'Failed to update category' });
