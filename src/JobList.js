@@ -1,11 +1,13 @@
-import {v4 as uuid} from "uuid";
+import { v4 as uuid } from "uuid";
 import EventEmitter from "events";
 
 export default class JobList {
     #jobs = new Map();
     #eventEmitter = new EventEmitter();
 
-    constructor() {}
+    constructor() {
+        this.startCleanupInterval();
+    }
 
     on(event, listener) {
         this.#eventEmitter.on(event, listener);
@@ -66,13 +68,30 @@ export default class JobList {
     }
 
     setJobFailed(jobId, errorMessage) {
-    const job = this.getJob(jobId);
-    if (job) {
-        job.status = 'failed';
-        job.errorMessage = errorMessage; // Store error message for diagnostics
+        const job = this.getJob(jobId);
+        if (job) {
+            job.status = 'failed';
+            job.errorMessage = errorMessage;
+            this.#eventEmitter.emit('job updated', {job, jobs: Array.from(this.#jobs.values())});
+        }
+    }
+
+    startCleanupInterval() {
+        setInterval(() => this.cleanupOldJobs(), 60 * 60 * 1000);
+    }
+
+    cleanupOldJobs() {
+        const now = new Date();
+        for (const [id, job] of this.#jobs.entries()) {
+            if ((job.status === 'finished' || job.status === 'failed') && 
+                (now - job.created > 24 * 60 * 60 * 1000)) {
+                this.#jobs.delete(id);
+                this.#eventEmitter.emit('job deleted', {id, jobs: Array.from(this.#jobs.values())});
+            }
+        }
+    }
+
+    manualCleanup() {
+        this.cleanupOldJobs();
     }
 }
-}
-
-
-
