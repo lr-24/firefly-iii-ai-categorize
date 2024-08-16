@@ -131,7 +131,8 @@ export default class App {
                 throw new Error(`Category ID ${categoryId} not found`);
             }
     
-            // Set the category in the job data
+            // Set the category in the job data and set customTag
+            const customTag = getConfigVariable("FIREFLY_TAG_HUMAN");
             await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId);
             job.data.category = categoryName;
             this.#jobList.setJobFinished(jobId);
