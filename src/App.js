@@ -110,6 +110,8 @@ export default class App {
 
         try {
             await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId);
+            // Force job.data.category = categoryId
+            job.data.category = categoryId
             this.#jobList.setJobFinished(jobId);
         } catch (error) {
             console.error('Error setting category in Firefly:', error);
