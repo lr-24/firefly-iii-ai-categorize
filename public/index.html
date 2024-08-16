@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>FireflyService III AI Categorizer</title>
     <style>
@@ -54,10 +55,6 @@
         .confirm-btn:disabled {
             background-color: #ccc;
             cursor: not-allowed;
-        }
-
-        .assigned-category {
-            font-weight: bold;
         }
     </style>
 </head>
@@ -119,7 +116,6 @@
                     <pre>${job.data.response}</pre>
                  </details>
             </div>` : ''}
-            <div><strong>Assigned category:</strong> <span data-job-id="${job.id}" class="assigned-category">${job.data?.assignedCategory ? categories.get(job.data.assignedCategory) : '<em>Not yet assigned</em>'}</span></div>
             ${ job.status === 'human_input' ? `<div><strong>Category:</strong>
                 <select data-job-id="${job.id}" class="category-select">
                     <option value="">Select a category</option>
@@ -185,23 +181,9 @@
                 socket.emit('update job category', { jobId, category: selectedCategory }, (response) => {
                     // Callback function to handle server acknowledgment
                     if (response.success) {
-                        // Find the job element
-                        const jobElement = document.querySelector(`[data-job-id="${jobId}"]`);
-
-                        if (jobElement) {
-                            // Find the existing assigned category element
-                            let assignedCategoryElement = jobElement.querySelector('.assigned-category');
-                            
-                            // If it doesn't exist, create it
-                            if (!assignedCategoryElement) {
-                                assignedCategoryElement = document.createElement('div');
-                                assignedCategoryElement.innerHTML = `<strong>Assigned category:</strong> <span class="assigned-category"></span>`;
-                                jobElement.appendChild(assignedCategoryElement);
-                            }
-
-                            // Update the assigned category text
-                            assignedCategoryElement.querySelector('span').textContent = Array.from(categories).find(([id]) => id === selectedCategory)[1];
-                        }
+                        // Update the "Guessed category" on the UI
+                        const guessedCategoryElement = document.querySelector(`.guessed-category[data-job-id="${jobId}"]`);
+                        guessedCategoryElement.textContent = Array.from(categories).find(([id]) => id === selectedCategory)[1];
                     } else {
                         console.error('Failed to update category:', response.error);
                     }
