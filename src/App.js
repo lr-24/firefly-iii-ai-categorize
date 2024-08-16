@@ -91,12 +91,9 @@ export default class App {
             socket.on('update job category', async ({ jobId, category }) => {
                 try {
                     await this.setCategory(jobId, category);
-                    // Fetch the updated job
+                    // Notify all clients of the updated job
                     const updatedJob = this.#jobList.getJob(jobId);
-                    // Emit the updated job details to all clients
                     this.#io.emit('job updated', { job: updatedJob });
-                    // Optionally, acknowledge the client
-                    socket.emit('update confirmation', { success: true });
                 } catch (error) {
                     console.error('Error updating job category:', error);
                     socket.emit('error', { message: 'Failed to update category' });
@@ -113,7 +110,6 @@ export default class App {
 
         try {
             await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId);
-            job.data.category = category; // Make sure this updates the job
             this.#jobList.setJobFinished(jobId);
         } catch (error) {
             console.error('Error setting category in Firefly:', error);
