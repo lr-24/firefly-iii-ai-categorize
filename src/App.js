@@ -110,6 +110,13 @@ export default class App {
 
         try {
             await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId);
+            // Assuming `categories` is a Map or an array of [id, value] pairs
+            const categoryValue = Array.from(this.#categories).find(([id]) => id === selectedCategory)?.[1];
+            if (categoryValue === undefined) {
+                throw new Error('Selected category not found');
+            }
+            // Update the category directly
+            job.data.category = categoryValue;
             this.#jobList.setJobFinished(jobId);
         } catch (error) {
             console.error('Error setting category in Firefly:', error);
