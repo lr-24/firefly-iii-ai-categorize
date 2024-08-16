@@ -175,22 +175,19 @@
             const jobId = event.target.getAttribute('data-job-id');
             const categorySelect = document.querySelector(`.category-select[data-job-id="${jobId}"]`);
             const selectedCategory = categorySelect.value;
-
+    
             if (selectedCategory) {
                 // Emit the event to the server with the updated category
-                socket.emit('update job category', { jobId, category: selectedCategory }, (response) => {
-                    // Callback function to handle server acknowledgment
-                    if (response.success) {
-                        // Update the "Guessed category" on the UI
-                        const guessedCategoryElement = document.querySelector(`.guessed-category[data-job-id="${jobId}"]`);
-                        guessedCategoryElement.textContent = Array.from(categories).find(([id]) => id === selectedCategory)[1];
-                    } else {
-                        console.error('Failed to update category:', response.error);
-                    }
-                });
-
+                socket.emit('update job category', { jobId, category: selectedCategory });
+    
+                // Assume the update was successful for now and update the UI
+                const guessedCategoryElement = document.querySelector(`.guessed-category[data-job-id="${jobId}"]`);
+                guessedCategoryElement.textContent = Array.from(categories).find(([id]) => id === selectedCategory)[1];
+    
                 // Disable the confirm button after submission
                 event.target.disabled = true;
+    
+                // Optionally, you might want to add error handling or status updates later
             }
         }
     });
