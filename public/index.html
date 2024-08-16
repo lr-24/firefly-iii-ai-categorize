@@ -75,7 +75,6 @@
     let socket = io();
     const mount = document.getElementById('mount');
     let categories = new Map(); // To store categories fetched from the server
-    let pendingCategories = new Map(); // To store pending categories for jobs
 
     // Fetch categories from the server and store them in the `categories` Map
     async function fetchCategories() {
@@ -156,13 +155,11 @@
 
     socket.on('job updated', e => {
         console.log('job updated', e);
-        const jobId = e.job.id;
-        const jobElement = document.querySelector(`[data-job-id="${jobId}"]`);
-        if (jobElement && e.job.status === 'finished') {
-            const assignedCategoryElement = jobElement.querySelector('.assigned-category');
-            if (assignedCategoryElement) {
-                assignedCategoryElement.textContent = categories.get(e.job.data.assignedCategory);
-            }
+        const oldElement = document.querySelector(`[data-job-id="${e.job.id}"]`);
+        if (oldElement) {
+            const newElement = document.createElement('div');
+            newElement.innerHTML = renderJob(e.job);
+            oldElement.replaceWith(newElement);
         }
     });
 
@@ -184,19 +181,34 @@
             const selectedCategory = categorySelect.value;
 
             if (selectedCategory) {
-                // Store the selected category to be applied when the job status turns to "finished"
-                pendingCategories.set(jobId, selectedCategory);
-
                 // Emit the event to the server with the updated category
                 socket.emit('update job category', { jobId, category: selectedCategory }, (response) => {
                     // Callback function to handle server acknowledgment
                     if (response.success) {
-                        // Optionally, disable the confirm button after submission
-                        event.target.disabled = true;
+                        // Find the job element
+                        const jobElement = document.querySelector(`[data-job-id="${jobId}"]`);
+
+                        if (jobElement) {
+                            // Find the existing assigned category element
+                            let assignedCategoryElement = jobElement.querySelector('.assigned-category');
+                            
+                            // If it doesn't exist, create it
+                            if (!assignedCategoryElement) {
+                                assignedCategoryElement = document.createElement('div');
+                                assignedCategoryElement.innerHTML = `<strong>Assigned category:</strong> <span class="assigned-category"></span>`;
+                                jobElement.appendChild(assignedCategoryElement);
+                            }
+
+                            // Update the assigned category text
+                            assignedCategoryElement.querySelector('span').textContent = Array.from(categories).find(([id]) => id === selectedCategory)[1];
+                        }
                     } else {
                         console.error('Failed to update category:', response.error);
                     }
                 });
+
+                // Disable the confirm button after submission
+                event.target.disabled = true;
             }
         }
     });
