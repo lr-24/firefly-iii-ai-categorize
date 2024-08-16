@@ -103,26 +103,36 @@ export default class App {
     }
 
     async setCategory(jobId, categoryId) {
-        const job = this.#jobList.getJob(jobId);
-        if (!job || job.status !== 'human_input') {
-            throw new Error('Invalid job or job status');
+    const job = this.#jobList.getJob(jobId);
+    if (!job || job.status !== 'human_input') {
+        throw new Error('Invalid job or job status');
+    }
+
+    try {
+        // Set the category in Firefly
+        await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId);
+
+        // Assuming `categories` is a Map or an array of [id, value] pairs
+        const categoryValue = Array.from(this.#categories).find(([id]) => id === categoryId)?.[1];
+        
+        if (categoryValue === undefined) {
+            throw new Error('Selected category not found');
         }
 
-        try {
-            await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId);
-            // Assuming `categories` is a Map or an array of [id, value] pairs
-            const categoryValue = Array.from(this.#categories).find(([id]) => id === categoryId)?.[1];
-            if (categoryValue === undefined) {
-                throw new Error('Selected category not found');
-            }
-            // Update the category directly
-            job.data.category = categoryValue;
-            this.#jobList.setJobFinished(jobId);
-        } catch (error) {
-            console.error('Error setting category in Firefly:', error);
-            throw error;
-        }
+        // Update the job's category
+        job.data.category = categoryValue;
+
+        // Optionally, mark the job as finished if required
+        this.#jobList.setJobFinished(jobId);
+        
+        // Notify clients of the updated job
+        this.#io.emit('job updated', { job });
+
+    } catch (error) {
+        console.error('Error setting category in Firefly:', error);
+        throw error;
     }
+}
 
     #onWebhook(req, res) {
         try {
