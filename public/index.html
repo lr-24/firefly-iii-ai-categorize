@@ -159,17 +159,6 @@
         }
     });
 
-    socket.on('job deleted', ({ id, jobs }) => {
-        // Remove the deleted job's element from the DOM
-        const jobElement = document.querySelector(`[data-job-id="${id}"]`);
-        if (jobElement) {
-            jobElement.remove();
-        }
-
-        // Optionally, update the job list if needed (e.g., re-rendering all jobs)
-        updateJobList(jobs);
-    });    
-
     mount.addEventListener('change', event => {
         if (event.target.classList.contains('category-select')) {
             const jobId = event.target.getAttribute('data-job-id');
