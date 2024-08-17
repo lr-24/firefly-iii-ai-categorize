@@ -84,11 +84,6 @@
         }
     }
 
-    // Render the category options based on fetched categories
-    const renderCategoryOptions = () => {
-        return Array.from(categories).map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
-    };
-
     const renderJob = (job) => {
     // Rebuild category options each time renderJob is called
     const renderCategoryOptions = () => {
