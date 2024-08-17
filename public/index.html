@@ -84,47 +84,47 @@
         }
     }
 
-    const renderJob = (job) => {
-    // Rebuild category options each time renderJob is called
+    // Render the category options based on fetched categories
     const renderCategoryOptions = () => {
         return Array.from(categories).map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
     };
 
-    const categoryOptions = renderCategoryOptions();
+    const renderJob = (job) => {
+        const categoryOptions = renderCategoryOptions();
 
-    return `<article class="job" data-job-id="${job.id}">
-        <div><strong>ID:</strong> <span>${job.id}</span></div>
-        <div><strong>Status:</strong> <span>${job.status}</span></div>
-        <div><strong>Created:</strong>
-            <time>${Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'medium'
-    }).format(new Date(job.created))}</time>
-        </div>
-        <div><strong>Destination name:</strong> <span>${job.data?.destinationName || ''}</span></div>
-        <div><strong>Description:</strong> <span>${job.data?.description || ''}</span></div>
-        <div><strong>Guessed category:</strong> <span data-job-id="${job.id}" class="guessed-category">${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
-        ${ job.data?.prompt ? `<div><strong>Prompt:</strong><br>
-            <details>
-                <summary>Show</summary>
-                <pre>${job.data.prompt}</pre>
-            </details>
-        </div>` : ''}
-        ${ job.data?.response ? `<div><strong>Open AI's response:</strong>
-             <details>
-                <summary>Show</summary>
-                <pre>${job.data.response}</pre>
-             </details>
-        </div>` : ''}
-        ${ job.status === 'human_input' ? `<div><strong>Category:</strong>
-            <select data-job-id="${job.id}" class="category-select">
-                <option value="">Select a category</option>
-                ${categoryOptions}
-            </select>
-            <button class="confirm-btn" data-job-id="${job.id}" disabled>Confirm</button>
-        </div>` : ''}
-    </article>`;
-}
+        return `<article class="job" data-job-id="${job.id}">
+            <div><strong>ID:</strong> <span>${job.id}</span></div>
+            <div><strong>Status:</strong> <span>${job.status}</span></div>
+            <div><strong>Created:</strong>
+                <time>${Intl.DateTimeFormat(undefined, {
+            dateStyle: 'medium',
+            timeStyle: 'medium'
+        }).format(new Date(job.created))}</time>
+            </div>
+            <div><strong>Destination name:</strong> <span>${job.data?.destinationName || ''}</span></div>
+            <div><strong>Description:</strong> <span>${job.data?.description || ''}</span></div>
+            <div><strong>Guessed category:</strong> <span data-job-id="${job.id}" class="guessed-category">${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
+            ${ job.data?.prompt ? `<div><strong>Prompt:</strong><br>
+                <details>
+                    <summary>Show</summary>
+                    <pre>${job.data.prompt}</pre>
+                </details>
+            </div>` : ''}
+            ${ job.data?.response ? `<div><strong>Open AI's response:</strong>
+                 <details>
+                    <summary>Show</summary>
+                    <pre>${job.data.response}</pre>
+                 </details>
+            </div>` : ''}
+            ${ job.status === 'human_input' ? `<div><strong>Category:</strong>
+                <select data-job-id="${job.id}" class="category-select">
+                    <option value="">Select a category</option>
+                    ${categoryOptions}
+                </select>
+                <button class="confirm-btn" data-job-id="${job.id}" disabled>Confirm</button>
+            </div>` : ''}
+        </article>`;
+    }
 
     const updateJobList = (jobs) => {
         mount.innerHTML = ''; // Clear existing content
