@@ -1,13 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>FireflyService III AI Categorizer</title>
-    <style>
-        body {
+
             font-family: sans-serif;
             background: lightgray;
         }
@@ -56,13 +47,6 @@
             background-color: #ccc;
             cursor: not-allowed;
         }
-
-        /* Loading state styling */
-        .loading {
-            text-align: center;
-            font-size: 1.2em;
-            color: #555;
-        }
     </style>
 </head>
 <body>
@@ -70,8 +54,7 @@
     <h1>Firefly III AI Categorizer</h1>
     <section>
         <h2>Jobs</h2>
-        <div id="loading" class="loading">Loading categories...</div>
-        <div id="mount" style="display: none;"></div>
+        <div id="mount"></div>
     </section>
 </div>
 
@@ -79,9 +62,7 @@
 <script>
     let socket = io();
     const mount = document.getElementById('mount');
-    const loading = document.getElementById('loading');
     let categories = new Map(); // To store categories fetched from the server
-    let categoriesFetched = false; // Flag to check if categories have been fetched
 
     // Fetch categories from the server and store them in the `categories` Map
     async function fetchCategories() {
@@ -89,9 +70,6 @@
             const response = await fetch('/categories');
             const data = await response.json();
             categories = new Map(data.categories.map(cat => [cat.id, cat.name]));
-            categoriesFetched = true;
-            loading.style.display = 'none'; // Hide loading message
-            mount.style.display = 'block'; // Show job list
         } catch (error) {
             console.error('Error fetching categories:', error);
         }
@@ -99,7 +77,6 @@
 
     // Render the category options based on fetched categories
     const renderCategoryOptions = () => {
-        if (!categoriesFetched) return '<option value="">Loading...</option>';
         return Array.from(categories).map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
     };
 
@@ -141,8 +118,6 @@
     }
 
     const updateJobList = (jobs) => {
-        if (!categoriesFetched) return; // Do not update jobs if categories are not fetched yet
-
         mount.innerHTML = ''; // Clear existing content
 
         jobs.sort((a, b) => new Date(b.created) - new Date(a.created))
@@ -160,8 +135,6 @@
 
     socket.on('job created', e => {
         console.log('job created', e);
-        if (!categoriesFetched) return; // Do not add job if categories are not fetched yet
-
         const element = document.createElement('div');
         element.innerHTML = renderJob(e.job);
         mount.prepend(element);
@@ -169,8 +142,6 @@
 
     socket.on('job updated', e => {
         console.log('job updated', e);
-        if (!categoriesFetched) return; // Do not update job if categories are not fetched yet
-
         const oldElement = document.querySelector(`[data-job-id="${e.job.id}"]`);
         if (oldElement) {
             const newElement = document.createElement('div');
@@ -195,19 +166,22 @@
             const jobId = event.target.getAttribute('data-job-id');
             const categorySelect = document.querySelector(`.category-select[data-job-id="${jobId}"]`);
             const selectedCategory = categorySelect.value;
-    
+
             if (selectedCategory) {
                 // Emit the event to the server with the updated category
-                socket.emit('update job category', { jobId, category: selectedCategory });
-    
-                // Assume the update was successful for now and update the UI
-                const guessedCategoryElement = document.querySelector(`.guessed-category[data-job-id="${jobId}"]`);
-                guessedCategoryElement.textContent = Array.from(categories).find(([id]) => id === selectedCategory)[1];
-    
+                socket.emit('update job category', { jobId, category: selectedCategory }, (response) => {
+                    // Callback function to handle server acknowledgment
+                    if (response.success) {
+                        // Update the "Guessed category" on the UI
+                        const guessedCategoryElement = document.querySelector(`.guessed-category[data-job-id="${jobId}"]`);
+                        guessedCategoryElement.textContent = Array.from(categories).find(([id]) => id === selectedCategory)[1];
+                    } else {
+                        console.error('Failed to update category:', response.error);
+                    }
+                });
+
                 // Disable the confirm button after submission
                 event.target.disabled = true;
-    
-                // Optionally, you might want to add error handling or status updates later
             }
         }
     });
