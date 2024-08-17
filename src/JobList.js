@@ -84,8 +84,7 @@ export default class JobList {
         const now = new Date();
         for (const [id, job] of this.#jobs.entries()) {
             if ((job.status === 'finished' || job.status === 'failed') && 
-                //(now - job.created > 24 * 60 * 60 * 1000)) {
-                (now - job.created > 24)) {
+                (now - job.created > 24 * 60 * 60 * 1000)) {
                 this.#jobs.delete(id);
                 this.#eventEmitter.emit('job deleted', {id, jobs: Array.from(this.#jobs.values())});
             }
