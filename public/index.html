@@ -56,6 +56,13 @@
             background-color: #ccc;
             cursor: not-allowed;
         }
+
+        /* Loading state styling */
+        .loading {
+            text-align: center;
+            font-size: 1.2em;
+            color: #555;
+        }
     </style>
 </head>
 <body>
@@ -63,7 +70,8 @@
     <h1>Firefly III AI Categorizer</h1>
     <section>
         <h2>Jobs</h2>
-        <div id="mount"></div>
+        <div id="loading" class="loading">Loading categories...</div>
+        <div id="mount" style="display: none;"></div>
     </section>
 </div>
 
@@ -71,7 +79,9 @@
 <script>
     let socket = io();
     const mount = document.getElementById('mount');
+    const loading = document.getElementById('loading');
     let categories = new Map(); // To store categories fetched from the server
+    let categoriesFetched = false; // Flag to check if categories have been fetched
 
     // Fetch categories from the server and store them in the `categories` Map
     async function fetchCategories() {
@@ -79,6 +89,9 @@
             const response = await fetch('/categories');
             const data = await response.json();
             categories = new Map(data.categories.map(cat => [cat.id, cat.name]));
+            categoriesFetched = true;
+            loading.style.display = 'none'; // Hide loading message
+            mount.style.display = 'block'; // Show job list
         } catch (error) {
             console.error('Error fetching categories:', error);
         }
@@ -86,6 +99,7 @@
 
     // Render the category options based on fetched categories
     const renderCategoryOptions = () => {
+        if (!categoriesFetched) return '<option value="">Loading...</option>';
         return Array.from(categories).map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
     };
 
@@ -127,6 +141,8 @@
     }
 
     const updateJobList = (jobs) => {
+        if (!categoriesFetched) return; // Do not update jobs if categories are not fetched yet
+
         mount.innerHTML = ''; // Clear existing content
 
         jobs.sort((a, b) => new Date(b.created) - new Date(a.created))
@@ -144,6 +160,8 @@
 
     socket.on('job created', e => {
         console.log('job created', e);
+        if (!categoriesFetched) return; // Do not add job if categories are not fetched yet
+
         const element = document.createElement('div');
         element.innerHTML = renderJob(e.job);
         mount.prepend(element);
@@ -151,6 +169,8 @@
 
     socket.on('job updated', e => {
         console.log('job updated', e);
+        if (!categoriesFetched) return; // Do not update job if categories are not fetched yet
+
         const oldElement = document.querySelector(`[data-job-id="${e.job.id}"]`);
         if (oldElement) {
             const newElement = document.createElement('div');
