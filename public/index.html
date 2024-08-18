@@ -79,8 +79,10 @@
             const response = await fetch('/categories');
             const data = await response.json();
             categories = new Map(data.categories.map(cat => [cat.id, cat.name]));
+            return true; // Return true to indicate categories are fetched
         } catch (error) {
             console.error('Error fetching categories:', error);
+            return false; // Return false if there's an error
         }
     }
 
@@ -137,25 +139,35 @@
             });
     };
 
-    socket.on('jobs', jobs => {
+    // When the socket receives jobs, make sure categories are already fetched before rendering
+    socket.on('jobs', async (jobs) => {
         console.log('jobs', jobs);
-        updateJobList(jobs);
+        const categoriesFetched = await fetchCategories();
+        if (categoriesFetched) {
+            updateJobList(jobs);
+        }
     });
 
-    socket.on('job created', e => {
+    socket.on('job created', async (e) => {
         console.log('job created', e);
-        const element = document.createElement('div');
-        element.innerHTML = renderJob(e.job);
-        mount.prepend(element);
+        const categoriesFetched = await fetchCategories();
+        if (categoriesFetched) {
+            const element = document.createElement('div');
+            element.innerHTML = renderJob(e.job);
+            mount.prepend(element);
+        }
     });
 
-    socket.on('job updated', e => {
+    socket.on('job updated', async (e) => {
         console.log('job updated', e);
         const oldElement = document.querySelector(`[data-job-id="${e.job.id}"]`);
         if (oldElement) {
-            const newElement = document.createElement('div');
-            newElement.innerHTML = renderJob(e.job);
-            oldElement.replaceWith(newElement);
+            const categoriesFetched = await fetchCategories();
+            if (categoriesFetched) {
+                const newElement = document.createElement('div');
+                newElement.innerHTML = renderJob(e.job);
+                oldElement.replaceWith(newElement);
+            }
         }
     });
 
@@ -195,8 +207,12 @@
         }
     });
 
-    // Fetch categories when the page loads
-    fetchCategories();
+    // Fetch categories when the page loads and then render jobs
+    fetchCategories().then(categoriesFetched => {
+        if (categoriesFetched) {
+            socket.emit('get jobs'); // Assuming there's an event to fetch jobs
+        }
+    });
 </script>
 </body>
 </html>
