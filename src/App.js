@@ -158,6 +158,7 @@ export default class App {
         const exactSubstringsToRemove = [
             /PAGAMENTO POS\b/i,
             /CRV\*/i,
+            /PAYPAL\*/i,
             /VILNIUS IRL.*$/i,
             /DUBLIN IRL.*$/i,
             /AMSTERDAM IRL.*$/i,
