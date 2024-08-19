@@ -161,7 +161,7 @@
             const jobId = select.getAttribute('data-job-id');
             const job = jobs.find(job => job.id === jobId); // Find the job corresponding to the dropdown
             if (job && job.data?.category) {
-                select.value = job.data.category; // Set the default value
+                select.value = Array.from(categories).find(([id, name]) => name === job.data.category)?.[0] || '';
             }
         });
     };
