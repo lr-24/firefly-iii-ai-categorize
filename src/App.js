@@ -260,7 +260,7 @@ export default class App {
 
                 // Set the temporary category for the transaction and mark the job as finished
                 await this.#firefly.setTempCategory(req.body.content.id, req.body.content.transactions, categories.get(category));
-                this.#jobList.setJobFinished(job.id);
+                this.#jobList.setJobHumanInput(job.id);
 
             } catch (err) {
                 // Log the detailed error and mark the job as failed
