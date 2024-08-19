@@ -42,7 +42,8 @@
             margin: 5px 0;
         }
 
-        .confirm-btn, .do-not-change-btn {
+        .confirm-btn,
+        .do-not-change-btn {
             margin-top: 10px;
             padding: 5px 10px;
             color: white;
@@ -56,10 +57,11 @@
         }
 
         .do-not-change-btn {
-            background-color: #f44336; /* Red color for "Do not change" button */
+            background-color: #FF9800;
         }
 
-        .confirm-btn:disabled, .do-not-change-btn:disabled {
+        .confirm-btn:disabled,
+        .do-not-change-btn:disabled {
             background-color: #ccc;
             cursor: not-allowed;
         }
@@ -134,7 +136,7 @@
                 <button class="do-not-change-btn" data-job-id="${job.id}">Do not change</button>
             </div>` : ''}
         </article>`;
-    }
+    };
 
     const updateJobList = (jobs) => {
         mount.innerHTML = ''; // Clear existing content
@@ -214,14 +216,15 @@
             }
         } else if (event.target.classList.contains('do-not-change-btn')) {
             const jobId = event.target.getAttribute('data-job-id');
-            
-            // Emit an event to the server to mark the job as finished without changing the category
-            socket.emit('mark job as finished', { jobId }, (response) => {
+
+            // Emit the event to the server with a null category to mark the job as finished without changing the category
+            socket.emit('update job category', { jobId, category: null }, (response) => {
+                // Callback function to handle server acknowledgment
                 if (response.success) {
-                    // Update the job status on the UI
+                    // Update the job status on the UI to finished
                     const oldElement = document.querySelector(`[data-job-id="${jobId}"]`);
                     if (oldElement) {
-                        oldElement.querySelector('strong:contains("Status:") + span').textContent = 'finished';
+                        oldElement.querySelector('span:nth-child(4)').textContent = 'finished';
                     }
                 } else {
                     console.error('Failed to mark job as finished:', response.error);
