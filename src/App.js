@@ -71,7 +71,7 @@ export default class App {
         this.#express.get('/categories', async (req, res) => {
             try {
                 const categories = await this.#firefly.getCategories();
-                const categoriesArray = Array.from(categories.entries()).map(([id, name]) => ({ id, name }));
+                const categoriesArray = Array.from(categories.entries()).map(([name, id]) => ({ name, id }));
                 res.json({ categories: categoriesArray });
             } catch (error) {
                 console.error('Error fetching categories from Firefly:', error);
@@ -121,7 +121,7 @@ export default class App {
             const categories = await this.#firefly.getCategories();
     
             // Convert categories to an array
-            const categoriesArray = Array.from(categories.entries()).map(([id, name]) => ({ id, name }));
+            const categoriesArray = Array.from(categories.entries()).map(([name, id]) => ({ name, id }));
     
             if (categoriesArray.length === 0) {
                 throw new Error('No categories found');
@@ -129,7 +129,7 @@ export default class App {
     
             // Create a lookup map from categoryId to category name
             const categoryLookup = new Map();
-            categoriesArray.forEach(({ id, name }) => {
+            categoriesArray.forEach(({ name, id }) => {
                 categoryLookup.set(id, name);
             });
     
