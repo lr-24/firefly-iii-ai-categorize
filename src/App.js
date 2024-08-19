@@ -215,11 +215,13 @@ export default class App {
 
         const destinationName = req.body.content.transactions[0].destination_name;
         const description = req.body.content.transactions[0].description;
+        const amount = req.body.content.transactions[0].amount;
 
         const cleanedDescription = removeSubstrings(description, exactSubstringsToRemove);
 
         const job = this.#jobList.createJob({
             destinationName,
+            amount,
             description: cleanedDescription,
             transactionId: req.body.content.id,
             transactions: req.body.content.transactions
