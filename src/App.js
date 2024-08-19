@@ -111,35 +111,37 @@ export default class App {
         }
     
         try {
-            let finalCategoryId;
-
             if (categoryId === null) {
-                // If categoryId is null, it means "Do not change"
-                const categories = await this.#firefly.getCategories();
-                finalCategoryId = categories.get(job.data.guessedCategory);
-            } else {
-                // Use the category selected by the user
-                finalCategoryId = categoryId;
-            }
-
-            if (!finalCategoryId) {
-                throw new Error('No valid category to set');
+                // If categoryId is null, it means "Do not change", just mark the job as finished
+                this.#jobList.setJobFinished(jobId);
+                return;
             }
     
             // Fetch categories from Firefly
             const categories = await this.#firefly.getCategories();
     
-            // Get the category name for the provided finalCategoryId
-            const categoryName = Array.from(categories.entries())
-                .find(([name, id]) => id === finalCategoryId)[0];
+            // Convert categories to an array
+            const categoriesArray = Array.from(categories.entries()).map(([name, id]) => ({ name, id }));
     
-            if (!categoryName) {
-                throw new Error(`Category ID ${finalCategoryId} not found`);
+            if (categoriesArray.length === 0) {
+                throw new Error('No categories found');
             }
     
-            // Set the category in Firefly and update the job
+            // Create a lookup map from categoryId to category name
+            const categoryLookup = new Map();
+            categoriesArray.forEach(({ name, id }) => {
+                categoryLookup.set(id, name);
+            });
+    
+            // Get the category name for the provided categoryId
+            const categoryName = categoryLookup.get(categoryId);
+            if (!categoryName) {
+                throw new Error(`Category ID ${categoryId} not found`);
+            }
+    
+            // Set the category in the job data and set customTag
             const customTag = getConfigVariable("FIREFLY_TAG_HUMAN");
-            await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, finalCategoryId, customTag);
+            await this.#firefly.setCategory(job.data.transactionId, job.data.transactions, categoryId, customTag);
             job.data.category = categoryName;
             this.#jobList.setJobFinished(jobId);
         } catch (error) {
@@ -231,7 +233,7 @@ export default class App {
                 // Retrieve categories from Firefly service
                 const categories = await this.#firefly.getCategories();
 
-                // Classify the job using OpenAi service
+                // Classify the job using OpenAI service
                 const { category, prompt, response } = await this.#openAi.classify(
                     Array.from(categories.keys()),
                     destinationName,
@@ -239,9 +241,16 @@ export default class App {
                 );
 
                 // Handle classification results
+                if (!category) {
+                    console.warn('Classification failed. Setting job to human input.');
+                    this.#jobList.setJobHumanInput(job.id);
+                    return; // Exit the task as no further processing is needed
+                }
+
+                // Update job with new data including the category
                 const newData = {
                     ...job.data,
-                    guessedCategory: category, // Store guessed category
+                    category,
                     prompt,
                     response,
                     categories: Array.from(categories.entries())
@@ -249,8 +258,9 @@ export default class App {
 
                 this.#jobList.updateJobData(job.id, newData);
 
-                // Set job to require human input
-                this.#jobList.setJobHumanInput(job.id);
+                // Set the category for the transaction and mark the job as finished
+                await this.#firefly.setCategory(req.body.content.id, req.body.content.transactions, categories.get(category));
+                this.#jobList.setJobFinished(job.id);
 
             } catch (err) {
                 // Log the detailed error and mark the job as failed
