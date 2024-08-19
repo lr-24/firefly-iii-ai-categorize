@@ -155,14 +155,18 @@
         updateDropdowns(); // Set default values for dropdowns
     };
 
-    // Set default value for category dropdowns
+    // Set default value for category dropdowns and update confirm button state
     const updateDropdowns = () => {
         document.querySelectorAll('.category-select').forEach(select => {
             const jobId = select.getAttribute('data-job-id');
             const job = jobs.find(job => job.id === jobId); // Find the job corresponding to the dropdown
-            if (job && job.data?.category) {
-                const defaultCategoryId = Array.from(categories).find(([id, name]) => name === job.data.category)?.[0];
+            if (job) {
+                const defaultCategoryId = Array.from(categories).find(([id, name]) => name === job.data?.category)?.[0];
                 select.value = defaultCategoryId || '';
+                
+                // Enable or disable the confirm button based on the dropdown value
+                const confirmButton = document.querySelector(`.confirm-btn[data-job-id="${jobId}"]`);
+                confirmButton.disabled = !select.value; // Disable if no value is selected
             }
         });
     };
