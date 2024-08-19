@@ -81,6 +81,7 @@
     let socket = io();
     const mount = document.getElementById('mount');
     let categories = new Map(); // To store categories fetched from the server
+    let jobs = []; // To store jobs fetched from the server
 
     // Fetch categories from the server and store them in the `categories` Map
     async function fetchCategories() {
@@ -100,8 +101,10 @@
         return Array.from(categories).map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
     };
 
+    // Render a job in the UI
     const renderJob = (job) => {
         const categoryOptions = renderCategoryOptions();
+        const defaultCategory = job.data?.category || ''; // Set default category if available
 
         return `<article class="job" data-job-id="${job.id}">
             <div><strong>ID:</strong> <span>${job.id}</span></div>
@@ -138,6 +141,7 @@
         </article>`;
     };
 
+    // Update the job list in the UI
     const updateJobList = (jobs) => {
         mount.innerHTML = ''; // Clear existing content
 
@@ -147,11 +151,25 @@
                 element.innerHTML = renderJob(job);
                 mount.appendChild(element);
             });
+
+        updateDropdowns(); // Set default values for dropdowns
     };
 
-    // When the socket receives jobs, make sure categories are already fetched before rendering
-    socket.on('jobs', async (jobs) => {
-        console.log('jobs', jobs);
+    // Set default value for category dropdowns
+    const updateDropdowns = () => {
+        document.querySelectorAll('.category-select').forEach(select => {
+            const jobId = select.getAttribute('data-job-id');
+            const job = jobs.find(job => job.id === jobId); // Find the job corresponding to the dropdown
+            if (job && job.data?.category) {
+                select.value = job.data.category; // Set the default value
+            }
+        });
+    };
+
+    // Handle socket events
+    socket.on('jobs', async (jobsData) => {
+        console.log('jobs', jobsData);
+        jobs = jobsData; // Store jobs in the global array
         const categoriesFetched = await fetchCategories();
         if (categoriesFetched) {
             updateJobList(jobs);
@@ -160,16 +178,19 @@
 
     socket.on('job created', async (e) => {
         console.log('job created', e);
+        jobs = [e.job, ...jobs]; // Add new job to the beginning of the array
         const categoriesFetched = await fetchCategories();
         if (categoriesFetched) {
             const element = document.createElement('div');
             element.innerHTML = renderJob(e.job);
             mount.prepend(element);
+            updateDropdowns(); // Set default values for dropdowns
         }
     });
 
     socket.on('job updated', async (e) => {
         console.log('job updated', e);
+        jobs = jobs.map(job => job.id === e.job.id ? e.job : job); // Update job in the array
         const oldElement = document.querySelector(`[data-job-id="${e.job.id}"]`);
         if (oldElement) {
             const categoriesFetched = await fetchCategories();
@@ -177,10 +198,12 @@
                 const newElement = document.createElement('div');
                 newElement.innerHTML = renderJob(e.job);
                 oldElement.replaceWith(newElement);
+                updateDropdowns(); // Set default values for dropdowns
             }
         }
     });
 
+    // Handle category select change event
     mount.addEventListener('change', event => {
         if (event.target.classList.contains('category-select')) {
             const jobId = event.target.getAttribute('data-job-id');
@@ -192,6 +215,7 @@
         }
     });
 
+    // Handle button click events
     mount.addEventListener('click', event => {
         if (event.target.classList.contains('confirm-btn')) {
             const jobId = event.target.getAttribute('data-job-id');
@@ -233,7 +257,7 @@
         }
     });
 
-    // Fetch categories when the page loads and then render jobs
+    // Fetch categories and jobs when the page loads
     fetchCategories().then(categoriesFetched => {
         if (categoriesFetched) {
             socket.emit('get jobs'); // Assuming there's an event to fetch jobs
