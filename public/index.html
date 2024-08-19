@@ -104,7 +104,8 @@
     // Render a job in the UI
     const renderJob = (job) => {
         const categoryOptions = renderCategoryOptions();
-        const defaultCategoryId = Array.from(categories).find(([id, name]) => name === job.data?.category)?.[0] || ''; // Set default category ID if available
+        const defaultCategoryId = Array.from(categories).find(([id, name]) => name === job.data?.category)?.[0] || '';
+        const amount = job.data?.amount || 'N/A'; // Use job.data?.amount
 
         return `<article class="job" data-job-id="${job.id}">
             <div><strong>ID:</strong> <span>${job.id}</span></div>
@@ -117,6 +118,7 @@
             </div>
             <div><strong>Destination name:</strong> <span>${job.data?.destinationName || ''}</span></div>
             <div><strong>Description:</strong> <span>${job.data?.description || ''}</span></div>
+            <div><strong>Transaction Amount:</strong> <span>${amount}</span></div>
             <div><strong>Guessed category:</strong> <span data-job-id="${job.id}" class="guessed-category">${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
             ${ job.data?.prompt ? `<div><strong>Prompt:</strong><br>
                 <details>
