@@ -73,6 +73,46 @@ export default class FireflyService {
         await response.json();
         console.info("Transaction updated")
     }
+
+    async setTempCategory(transactionId, transactions, categoryId, customTag = null) {
+        const tag = customTag || getConfigVariable("FIREFLY_TAG_AI", "AI categorized");
+
+        const body = {
+            apply_rules: false, //it will not apply TAGS
+            fire_webhooks: true,
+            transactions: [],
+        }
+
+        transactions.forEach(transaction => {
+            let tags = transaction.tags;
+            if (!tags) {
+                tags = [];
+            }
+            tags.push(tag);
+
+            body.transactions.push({
+                transaction_journal_id: transaction.transaction_journal_id,
+                category_id: categoryId,
+                tags: tags,
+            });
+        })
+
+        const response = await fetch(`${this.#BASE_URL}/api/v1/transactions/${transactionId}`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${this.#PERSONAL_TOKEN}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            throw new FireflyException(response.status, response, await response.text())
+        }
+
+        await response.json();
+        console.info("Transaction updated")
+    }
 }
 
 class FireflyException extends Error {
