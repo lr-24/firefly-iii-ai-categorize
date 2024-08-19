@@ -258,8 +258,8 @@ export default class App {
 
                 this.#jobList.updateJobData(job.id, newData);
 
-                // Set the category for the transaction and mark the job as finished
-                await this.#firefly.setCategory(req.body.content.id, req.body.content.transactions, categories.get(category));
+                // Set the temporary category for the transaction and mark the job as finished
+                await this.#firefly.setTempCategory(req.body.content.id, req.body.content.transactions, categories.get(category));
                 this.#jobList.setJobFinished(job.id);
 
             } catch (err) {
