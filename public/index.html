@@ -117,7 +117,7 @@
             </div>
             <div><strong>Destination name:</strong> <span>${job.data?.destinationName || ''}</span></div>
             <div><strong>Description:</strong> <span>${job.data?.description || ''}</span></div>
-            <div><strong>Amount:</strong> <span>${job.data?.amount || ''} ${job.data?.currency || 'boh'}</span></div>
+            <div><strong>Amount:</strong> <span>${job.data?.amount || ''} ${job.data?.currency || ''}</span></div>
             <div><strong>Guessed category:</strong> <span data-job-id="${job.id}" class="guessed-category">${job.data?.category ? job.data.category : '<em>Not yet classified</em>'}</span></div>
             ${ job.data?.prompt ? `<div><strong>Prompt:</strong><br>
                 <details>
