@@ -104,7 +104,7 @@
     // Render a job in the UI
     const renderJob = (job) => {
         const categoryOptions = renderCategoryOptions();
-        const defaultCategory = job.data?.category || ''; // Set default category if available
+        const defaultCategoryId = Array.from(categories).find(([id, name]) => name === job.data?.category)?.[0] || ''; // Set default category ID if available
 
         return `<article class="job" data-job-id="${job.id}">
             <div><strong>ID:</strong> <span>${job.id}</span></div>
@@ -161,7 +161,8 @@
             const jobId = select.getAttribute('data-job-id');
             const job = jobs.find(job => job.id === jobId); // Find the job corresponding to the dropdown
             if (job && job.data?.category) {
-                select.value = Array.from(categories).find(([id, name]) => name === job.data.category)?.[0] || '';
+                const defaultCategoryId = Array.from(categories).find(([id, name]) => name === job.data.category)?.[0];
+                select.value = defaultCategoryId || '';
             }
         });
     };
