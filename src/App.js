@@ -90,7 +90,9 @@ export default class App {
             // Handle the category update event from the client
             socket.on('update job category', async ({ jobId, category }) => {
                 try {
+                    // Update the job with the selected category, or mark as finished if category is null
                     await this.setCategory(jobId, category);
+
                     // Notify all clients of the updated job
                     const updatedJob = this.#jobList.getJob(jobId);
                     this.#io.emit('job updated', { job: updatedJob });
@@ -109,6 +111,12 @@ export default class App {
         }
     
         try {
+            if (categoryId === null) {
+                // If categoryId is null, it means "Do not change", just mark the job as finished
+                this.#jobList.setJobFinished(jobId);
+                return;
+            }
+    
             // Fetch categories from Firefly
             const categories = await this.#firefly.getCategories();
     
@@ -141,7 +149,6 @@ export default class App {
             throw error;
         }
     }
-
 
     #onWebhook(req, res) {
         try {
