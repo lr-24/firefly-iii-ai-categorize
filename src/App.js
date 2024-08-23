@@ -166,9 +166,9 @@ export default class App {
             /PAGAMENTO POS\b/i,
             /CRV\*/i,
             /PAYPAL\*/i,
-            /VILNIUS IRL\b.*$/i,
-            /DUBLIN IRL\b.*$/i,
-            /AMSTERDAM IRL\b.*$/i,
+            /\bVILNIUS IRL\b.*/i,  // Adjusted pattern for Vilnius IRL
+            /\bDUBLIN IRL\b.*/i,   // Adjusted pattern for Dublin IRL
+            /\bAMSTERDAM IRL\b.*/i, // Adjusted pattern for Amsterdam IRL
             /OPERAZIONE.*$/i
         ];
 
