@@ -165,12 +165,14 @@ export default class App {
         const exactSubstringsToRemove = [
             /PAGAMENTO POS\b/i,
             /CRV\*/i,
-            /PAYPAL\*/i,
-            /\bVILNIUS IRL\b.*/i,  // Adjusted pattern for Vilnius IRL
-            /\bDUBLIN IRL\b.*/i,   // Adjusted pattern for Dublin IRL
-            /\bAMSTERDAM IRL\b.*/i, // Adjusted pattern for Amsterdam IRL
+            /PAYPAL\s*\*/i,  // Adjusted pattern for PAYPAL followed by any number of spaces and an asterisk
+            /\bVILNIUS\s*IRL\b.*/i,  // Adjusted pattern for Vilnius IRL with any number of spaces between words
+            /\bDUBLIN\s*IRL\b.*/i,   // Adjusted pattern for Dublin IRL with any number of spaces between words
+            /\bAMSTERDAM\s*IRL\b.*/i, // Adjusted pattern for Amsterdam IRL with any number of spaces between words
             /OPERAZIONE.*$/i
         ];
+
+        //The \s* allows for any number of spaces (including zero spaces) between "PAYPAL" and the asterisk (*).
 
         function removeSubstrings(description, regexPatterns) {
             let result = description;
