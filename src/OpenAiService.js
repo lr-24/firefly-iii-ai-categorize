@@ -31,22 +31,25 @@ export default class OpenAiService {
                 messages: [{ role: 'user', content: prompt }]
             });
 
-            // Handle and clean up the response to remove any formatting
+            // Handle and clean up the response
             let guess = response.data.choices[0]?.message?.content || '';
             guess = guess.replace(/[*_`~]/g, ''); // Remove Markdown formatting characters
             guess = guess.replace(/\n/g, '');     // Remove newlines
             guess = guess.trim();                // Trim leading and trailing spaces
 
-            if (!categories.includes(guess)) {
+            // Extract the valid category from the response
+            const matchedCategory = categories.find(category => guess.includes(category));
+
+            if (matchedCategory) {
+                return {
+                    prompt,
+                    response: guess,
+                    category: matchedCategory
+                };
+            } else {
                 console.warn(`OpenAI could not classify the transaction.\nPrompt: ${prompt}\nOpenAI's guess: ${guess}`);
                 return { category: null, prompt, response: guess }; // Return null for category
             }
-
-            return {
-                prompt,
-                response: guess,
-                category: guess
-            };
 
         } catch (error) {
             if (error.response) {
