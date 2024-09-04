@@ -61,7 +61,7 @@ export default class OpenAiService {
     }
 
     #generatePrompt(categories, destinationName, description) {
-        return `Sei un esperto di transazioni bancarie. Voglio categorizzare le transazioni sul mio conto bancario in queste categorie: ${categories.join('; ')}. In quale categoria rientra una transazione verso il conto "${destinationName}" con la descrizione "${description}"? Rispondi solo con il nome esatto della categoria più adatta. Se nessuna categoria è adatta, rispondi con "Non posso classificare la transazione". Non aggiungere alcuna spiegazione o nota.`;
+        return `Sei un esperto di transazioni bancarie. Voglio categorizzare le transazioni sul mio conto bancario in queste categorie: ${categories.join('; ')}. In quale categoria rientra una transazione verso il conto "${destinationName}" con la descrizione "${description}"? Se nessuna categoria è adatta, rispondi con "Non posso classificare la transazione". Non aggiungere alcuna spiegazione o nota: rispondi solo con il nome esatto della categoria più adatta.`;
     }
 }
 
