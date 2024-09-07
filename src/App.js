@@ -170,6 +170,9 @@ export default class App {
             /\bDUBLIN\s*IRL\b.*/i,   // Adjusted pattern for Dublin IRL with any number of spaces between words
             /\bAMSTERDAM\s*IRL\b.*/i, // Adjusted pattern for Amsterdam IRL with any number of spaces between words
             /Operazione\s*Mastercard\s*del.*?\spresso\s*/i  // Removes everything between "Operazione Mastercard del" and "presso", any number of spaces allowed
+            /\bVILNIUS\b\s*$/i,  // Adjusted pattern to match "VILNIUS" as the last word with optional spaces after it
+            /\bDUBLIN\b\s*$/i,   // Adjusted pattern to match "DUBLIN" as the last word with optional spaces after it
+            /\bAMSTERDAM\b\s*$/i, // Adjusted pattern to match "AMSTERDAM" as the last word with optional spaces after it
         ];
 
         //The \s* allows for any number of spaces (including zero spaces) between "PAYPAL" and the asterisk (*).
