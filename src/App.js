@@ -164,6 +164,8 @@ export default class App {
     #handleWebhook(req, res) {
         const exactSubstringsToRemove = [
             /\bPAGAMENTO\s*POS\b/i,
+            /\bPAG SU POS\b .*? \bPRESSO\b/, // Utilizzare \b garantisce che vengano matchate esattamente le parole desiderate, evitando errori nel caso in cui siano presenti stringhe più lunghe contenenti queste sequenze.
+            /\b\(CTV\. .*?\)\b/,
             /CRV\s*\*/i,
             /SumUp\s*\*/i,
             /PAYPAL\s*\*/i,  // Adjusted pattern for PAYPAL followed by any number of spaces and an asterisk
@@ -176,9 +178,7 @@ export default class App {
             /\bAMSTERDAM\b\s*$/i, // Adjusted pattern to match "AMSTERDAM" as the last word with optional spaces after it
             /\-\s*Transazione\s*C-less\b.*/i, // Match "transazione C-less asl the last word with any number of spaces between words and with any character after it
             /\bOPERAZIONE\b.*\bCARTA\b.*$/i,
-            /\bCARTA\b.*$/i,
-            /\bPAG SU POS\b .*? \bPRESSO\b/, // Utilizzare \b garantisce che vengano matchate esattamente le parole desiderate, evitando errori nel caso in cui siano presenti stringhe più lunghe contenenti queste sequenze.
-            /\b\(CTV\. .*?\)\b/
+            /\bCARTA\b.*$/i
         ];
 
         //The \s* allows for any number of spaces (including zero spaces) between "PAYPAL" and the asterisk (*).
