@@ -164,8 +164,8 @@ export default class App {
     #handleWebhook(req, res) {
         const exactSubstringsToRemove = [
             /\bPAGAMENTO\s*POS\b/i,
-            /\bPAG SU POS\b .*? \bPRESSO\b/, // Utilizzare \b garantisce che vengano matchate esattamente le parole desiderate, evitando errori nel caso in cui siano presenti stringhe più lunghe contenenti queste sequenze.
-            /\b\(CTV\. .*?\)\b/,
+            /\bPAG SU POS\b.*?\bPRESSO\b/, // Utilizzare \b garantisce che vengano matchate esattamente le parole desiderate, evitando errori nel caso in cui siano presenti stringhe più lunghe contenenti queste sequenze.
+            /\b\(CTV\..*?\)\b/,
             /CRV\s*\*/i,
             /SumUp\s*\*/i,
             /PAYPAL\s*\*/i,  // Adjusted pattern for PAYPAL followed by any number of spaces and an asterisk
