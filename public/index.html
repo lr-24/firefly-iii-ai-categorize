@@ -131,7 +131,7 @@
                     <pre>${job.data.response}</pre>
                  </details>
             </div>` : ''}
-            ${ job.status === 'human_input' ? `<div><strong>Category:</strong>
+            ${ (job.status === 'human_input' || job.status === 'failed') ? `<div><strong>Category:</strong>
                 <select data-job-id="${job.id}" class="category-select">
                     <option value="">Select a category</option>
                     ${categoryOptions}
