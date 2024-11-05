@@ -106,7 +106,7 @@ export default class App {
 
     async setCategory(jobId, categoryId) {
         const job = this.#jobList.getJob(jobId);
-        if (!job || job.status !== 'human_input') {
+        if (!job || !['human_input', 'failed'].includes(job.status)) {
             throw new Error('Invalid job or job status');
         }
     
