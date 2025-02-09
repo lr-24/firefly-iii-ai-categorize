@@ -232,6 +232,7 @@ export default class App {
         const description = req.body.content.transactions[0].description;
         const amount = req.body.content.transactions[0].amount;
         const currency = req.body.content.transactions[0].currency_code;
+        const date = req.body.content.transactions[0].date;
 
         const cleanedDescription = removeSubstrings(description, exactSubstringsToRemove);
 
@@ -239,6 +240,7 @@ export default class App {
             destinationName,
             amount,
             currency,
+            date,
             description: cleanedDescription,
             transactionId: req.body.content.id,
             transactions: req.body.content.transactions
