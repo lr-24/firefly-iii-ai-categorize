@@ -105,6 +105,12 @@
     const renderJob = (job) => {
         const categoryOptions = renderCategoryOptions();
         const defaultCategoryId = Array.from(categories).find(([id, name]) => name === job.data?.category)?.[0] || '';
+        const transactionDate = job.data?.date ? 
+            Intl.DateTimeFormat(undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'medium'
+            }).format(new Date(job.data.date)) : 
+            'Not available';
 
         return `<article class="job" data-job-id="${job.id}">
             <div><strong>ID:</strong> <span>${job.id}</span></div>
@@ -115,6 +121,7 @@
             timeStyle: 'medium'
         }).format(new Date(job.created))}</time>
             </div>
+            <div><strong>Transaction Date:</strong> <span>${transactionDate}</span></div>
             <div><strong>Destination name:</strong> <span>${job.data?.destinationName || ''}</span></div>
             <div><strong>Description:</strong> <span>${job.data?.description || ''}</span></div>
             <div><strong>Amount:</strong> <span>${job.data?.amount || ''} ${job.data?.currency || ''}</span></div>
