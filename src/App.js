@@ -224,7 +224,7 @@ export default class App {
             throw new WebhookException('Missing content.transactions[0].destination_name');
         }
 
-        if (!req.body.content.transactions[0].date) {
+        if (!req.body.content.transactions[0].payment_date) {
             throw new WebhookException('Missing content.transactions[0].payment_date');
         }
 
