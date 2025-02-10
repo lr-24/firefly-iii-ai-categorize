@@ -225,14 +225,14 @@ export default class App {
         }
 
         if (!req.body.content.transactions[0].date) {
-            throw new WebhookException('Missing content.transactions[0].book_date');
+            throw new WebhookException('Missing content.transactions[0].payment_date');
         }
 
         const destinationName = req.body.content.transactions[0].destination_name;
         const description = req.body.content.transactions[0].description;
         const amount = req.body.content.transactions[0].amount;
         const currency = req.body.content.transactions[0].currency_code;
-        const date = req.body.content.transactions[0].book_date;
+        const date = req.body.content.transactions[0].payment_date;
 
         const cleanedDescription = removeSubstrings(description, exactSubstringsToRemove);
 
