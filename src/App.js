@@ -165,7 +165,7 @@ export default class App {
         const exactSubstringsToRemove = [
             /\bPAGAMENTO\s*POS\b/i,
             /\bPAG SU POS\b.*?\bPRESSO\b/, // Utilizzare \b garantisce che vengano matchate esattamente le parole desiderate, evitando errori nel caso in cui siano presenti stringhe più lunghe contenenti queste sequenze.
-            /\bPAGAMENTO\s*POS\b.*?\bPRESSO\b/,  // Rimuove tutto da "PAGAMENTO POS" fino a "PRESSO" incluso
+            /\bPAGAMENTO\s*POS\b.*?\bPRESSO\b/i,  // Rimuove tutto da "PAGAMENTO POS" fino a "PRESSO" incluso
             /\(CTV\.\s*(.*)/,
             /Operazione\s*Mastercard\s*del.*?\spresso\s*/i,  // Removes everything between "Operazione Mastercard del" and "presso", any number of spaces allowed
             /CRV\s*\*/i,
