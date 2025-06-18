@@ -213,7 +213,7 @@ export default class App {
             throw new WebhookException('content.transactions[0].type must be "withdrawal" or "deposit". Transaction will be ignored.');
         }
 
-        if (req.body.content.transactions[0].category_id !== null) {
+        if (req.body.content.transactions[0].category_id !== null && req.body.content.transactions[0].category_id !== '') {
             throw new WebhookException('content.transactions[0].category_id is already set. Transaction will be ignored.');
         }
 
