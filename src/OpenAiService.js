@@ -2,25 +2,26 @@ import axios from 'axios';
 import { getConfigVariable } from './util.js';
 
 export default class OpenAiService {
-    #axiosInstance;
-    #model = 'gpt-3.5-turbo'; // Modify the model name if needed
+  #axiosInstance;
+  #model;
 
-    constructor() {
-        const apiKey = getConfigVariable('OPENAI_API_KEY');
-        const baseURL = getConfigVariable('OPENAI_BASE_URL');
+  constructor() {
+    const apiKey = getConfigVariable('OPENAI_API_KEY');
+    const baseURL = getConfigVariable('OPENAI_BASE_URL');
+    this.#model = getConfigVariable('OPENAI_MODEL'); // Legge da env
 
-        if (!apiKey) {
-            throw new Error('API key is not defined in the configuration.');
-        }
-
-        this.#axiosInstance = axios.create({
-            baseURL: baseURL, // Set the custom base URL
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            }
-        });
+    if (!apiKey) {
+      throw new Error('API key is not defined in the configuration.');
     }
+
+    this.#axiosInstance = axios.create({
+      baseURL: baseURL,
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+  }
 
     async classify(categories, destinationName, description) {
         try {
