@@ -41,6 +41,38 @@ export default class JobList {
         return job;
     }
 
+    /**
+     * Returns the job of a transaction that is not finished yet (queued, in progress, waiting for a human, or failed),
+     * so the same transaction never gets a second job. A finished job does not count: if the transaction comes back
+     * without a category it gets a new job.
+     */
+    findOpenJobByTransactionId(transactionId) {
+        const wanted = String(transactionId);
+        for (const job of this.#jobs.values()) {
+            if (job.status !== "finished" && String(job.data?.transactionId) === wanted) {
+                return job;
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * Puts an existing job back to "queued" (a failed one that is retried, or one interrupted by a restart).
+     * If new data is given it replaces the old one (fresh webhook payload); the error message is cleared.
+     */
+    requeueJob(id, data = null) {
+        const job = this.#jobs.get(id);
+        if (job) {
+            if (data) {
+                job.data = data;
+            }
+            job.status = "queued";
+            delete job.errorMessage;
+            this.saveJobsToFile();
+            this.#eventEmitter.emit("job updated", { job, jobs: Array.from(this.#jobs.values()) });
+        }
+    }
+
     updateJobData(id, data) {
         const job = this.#jobs.get(id);
         if (job) {
@@ -95,7 +127,9 @@ export default class JobList {
         const now = new Date();
         let jobsDeleted = false;
         for (const [id, job] of this.#jobs.entries()) {
-            if ((job.status === "finished" || job.status === "failed") &&
+            // Only finished jobs expire. A failed job still needs a person (the UI offers the category list and
+            // "Do not change" for it) or a new attempt, so it must not disappear after a day.
+            if (job.status === "finished" &&
                 (now - new Date(job.created) > 24 * 60 * 60 * 1000)) {
                 this.#jobs.delete(id);
                 jobsDeleted = true;

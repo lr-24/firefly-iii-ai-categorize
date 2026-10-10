@@ -161,12 +161,66 @@ export default class App {
     #onWebhook(req, res) {
         try {
             console.info('Webhook triggered');
-            this.#handleWebhook(req, res);
-            res.send('Queued');
+            const result = this.#handleWebhook(req, res);
+            res.send(result);
         } catch (e) {
             console.error(e);
             res.status(400).send(e.message);
         }
+    }
+
+    // Puts the job in the queue: ask the AI for a category and save it as a temporary one in Firefly.
+    // Everything it needs is in job.data, so it works for a new job, a retry and a job interrupted by a restart.
+    #enqueue(jobId) {
+        this.#queue.push(async () => {
+            const job = this.#jobList.getJob(jobId);
+            if (!job) {
+                return; // removed in the meantime
+            }
+            const { destinationName, description, transactionId, transactions } = job.data;
+
+            try {
+                // Mark the job as in progress
+                this.#jobList.setJobInProgress(jobId);
+
+                // Retrieve categories from Firefly service
+                const categories = await this.#firefly.getCategories();
+
+                // Classify the job using OpenAI service
+                const { category, prompt, response } = await this.#openAi.classify(
+                    Array.from(categories.keys()),
+                    destinationName,
+                    description
+                );
+
+                // Handle classification results
+                if (!category) {
+                    console.warn('Classification failed. Setting job to human input.');
+                    this.#jobList.setJobHumanInput(jobId);
+                    return; // Exit the task as no further processing is needed
+                }
+
+                // Update job with new data including the category
+                const newData = {
+                    ...job.data,
+                    category,
+                    prompt,
+                    response,
+                    categories: Array.from(categories.entries())
+                };
+
+                this.#jobList.updateJobData(jobId, newData);
+
+                // Set the temporary category for the transaction and wait for the human
+                await this.#firefly.setTempCategory(transactionId, transactions, categories.get(category));
+                this.#jobList.setJobHumanInput(jobId);
+
+            } catch (err) {
+                // Log the detailed error and mark the job as failed
+                console.error('Job processing failed:', err);
+                this.#jobList.setJobFailed(jobId, err.message);
+            }
+        });
     }
 
     #handleWebhook(req, res) {
@@ -245,7 +299,7 @@ export default class App {
 
         const cleanedDescription = removeSubstrings(description, exactSubstringsToRemove);
 
-        const job = this.#jobList.createJob({
+        const data = {
             destinationName,
             amount,
             currency,
@@ -253,51 +307,26 @@ export default class App {
             description: cleanedDescription,
             transactionId: req.body.content.id,
             transactions: req.body.content.transactions
-        });
+        };
 
-        this.#queue.push(async () => {
-            try {
-                // Mark the job as in progress
-                this.#jobList.setJobInProgress(job.id);
-
-                // Retrieve categories from Firefly service
-                const categories = await this.#firefly.getCategories();
-
-                // Classify the job using OpenAI service
-                const { category, prompt, response } = await this.#openAi.classify(
-                    Array.from(categories.keys()),
-                    destinationName,
-                    cleanedDescription
-                );
-
-                // Handle classification results
-                if (!category) {
-                    console.warn('Classification failed. Setting job to human input.');
-                    this.#jobList.setJobHumanInput(job.id);
-                    return; // Exit the task as no further processing is needed
-                }
-
-                // Update job with new data including the category
-                const newData = {
-                    ...job.data,
-                    category,
-                    prompt,
-                    response,
-                    categories: Array.from(categories.entries())
-                };
-
-                this.#jobList.updateJobData(job.id, newData);
-
-                // Set the temporary category for the transaction and mark the job as finished
-                await this.#firefly.setTempCategory(req.body.content.id, req.body.content.transactions, categories.get(category));
-                this.#jobList.setJobHumanInput(job.id);
-
-            } catch (err) {
-                // Log the detailed error and mark the job as failed
-                console.error('Job processing failed:', err);
-                this.#jobList.setJobFailed(job.id, err.message);
+        // The same transaction can reach this webhook more than once (the weekly script re-triggers every transaction
+        // without a category, or two webhooks arrive close together). Never create a second job for a transaction that
+        // already has one that is not finished.
+        const openJob = this.#jobList.findOpenJobByTransactionId(data.transactionId);
+        if (openJob) {
+            if (openJob.status === 'failed') {
+                console.info(`Transaction ${data.transactionId}: job ${openJob.id} had failed, trying again`);
+                this.#jobList.requeueJob(openJob.id, data);
+                this.#enqueue(openJob.id);
+                return 'Requeued';
             }
-        });
+            console.info(`Transaction ${data.transactionId} already has job ${openJob.id} (${openJob.status}): webhook ignored`);
+            return 'Already queued';
+        }
+
+        const job = this.#jobList.createJob(data);
+        this.#enqueue(job.id);
+        return 'Queued';
     }
 }
 
