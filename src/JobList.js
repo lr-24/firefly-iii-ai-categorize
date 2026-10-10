@@ -141,6 +141,18 @@ export default class JobList {
         }
     }
 
+    /**
+     * Removes a job (for example because its transaction was deleted in Firefly) and tells the UI.
+     */
+    removeJob(id) {
+        if (this.#jobs.delete(id)) {
+            this.saveJobsToFile();
+            this.#eventEmitter.emit("jobs cleaned", { jobs: Array.from(this.#jobs.values()) });
+            return true;
+        }
+        return false;
+    }
+
     manualCleanup() {
         this.cleanupOldJobs();
     }

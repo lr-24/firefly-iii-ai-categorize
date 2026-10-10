@@ -81,7 +81,7 @@ export default class FireflyService {
      * depend on the category (for example "add tag <macro-category>") have never run.
      * The current category and tags are read from Firefly right now (not from the old webhook payload),
      * so anything changed in the meantime (by the user or by other rules) is preserved.
-     * Returns false if the transaction no longer exists or has no category.
+     * Returns true if the rules were applied, false if the transaction has no category, 'gone' if it no longer exists.
      */
     async applyRules(transactionId) {
         const getResponse = await fetch(`${this.#BASE_URL}/api/v1/transactions/${transactionId}`, {
@@ -92,7 +92,7 @@ export default class FireflyService {
 
         if (getResponse.status === 404) {
             console.warn(`Transaction ${transactionId} not found: rules not applied`);
-            return false;
+            return 'gone';
         }
 
         if (!getResponse.ok) {
@@ -139,6 +139,28 @@ export default class FireflyService {
 
         await response.json();
         console.info("Rules applied to transaction")
+        return true;
+    }
+
+    /**
+     * Tells whether a transaction still exists in Firefly (a deleted transaction answers 404).
+     * Any other error is thrown, so a Firefly that is down is never mistaken for a deleted transaction.
+     */
+    async transactionExists(transactionId) {
+        const response = await fetch(`${this.#BASE_URL}/api/v1/transactions/${transactionId}`, {
+            headers: {
+                Authorization: `Bearer ${this.#PERSONAL_TOKEN}`,
+            }
+        });
+
+        if (response.status === 404) {
+            return false;
+        }
+
+        if (!response.ok) {
+            throw new FireflyException(response.status, response, await response.text())
+        }
+
         return true;
     }
 

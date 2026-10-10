@@ -48,6 +48,14 @@ export default class App {
         this.#jobList = new JobList();
         this.#jobList.on('job created', data => this.#io.emit('job created', data));
         this.#jobList.on('job updated', data => this.#io.emit('job updated', data));
+        this.#jobList.on('jobs cleaned', data => this.#io.emit('jobs', Array.from(data.jobs)));
+
+        // A transaction deleted in Firefly must disappear from the UI too: every RECONCILE_INTERVAL_MS (30 minutes) the jobs
+        // that are not finished are checked against Firefly, and the ones whose transaction no longer exists are removed.
+        const firstDelay = Number(getConfigVariable('RECONCILE_FIRST_DELAY_MS', String(60 * 1000)));
+        const interval = Number(getConfigVariable('RECONCILE_INTERVAL_MS', String(30 * 60 * 1000)));
+        setTimeout(() => this.#removeJobsOfDeletedTransactions(), firstDelay);
+        setInterval(() => this.#removeJobsOfDeletedTransactions(), interval);
 
         // Jobs that were queued or in progress when the app stopped are not in the in-memory queue any more and would
         // stay stuck forever (the UI offers nothing for them): put them back in the queue.
@@ -114,6 +122,34 @@ export default class App {
         });
     }
 
+    #reconciling = false;
+
+    // Removes the jobs whose transaction no longer exists in Firefly. If Firefly cannot be reached nothing is removed.
+    async #removeJobsOfDeletedTransactions() {
+        if (this.#reconciling) {
+            return;
+        }
+        this.#reconciling = true;
+        try {
+            for (const job of Array.from(this.#jobList.getJobs().values())) {
+                if (job.status === 'finished') {
+                    continue;
+                }
+                try {
+                    if (!(await this.#firefly.transactionExists(job.data.transactionId))) {
+                        console.info(`Transaction ${job.data.transactionId} was deleted in Firefly: removing job ${job.id} (${job.status})`);
+                        this.#jobList.removeJob(job.id);
+                    }
+                } catch (err) {
+                    console.warn(`Could not check transaction ${job.data.transactionId}: ${err.message}`);
+                    return; // Firefly is probably down: try again at the next round
+                }
+            }
+        } finally {
+            this.#reconciling = false;
+        }
+    }
+
     async setCategory(jobId, categoryId) {
         const job = this.#jobList.getJob(jobId);
         if (!job || !['human_input', 'failed'].includes(job.status)) {
@@ -129,7 +165,11 @@ export default class App {
                 // depend on the category (e.g. macro-category tags) were never added.
                 // Save the same category again with apply_rules=true so those rules run now.
                 if (job.data.category) {
-                    await this.#firefly.applyRules(job.data.transactionId);
+                    const result = await this.#firefly.applyRules(job.data.transactionId);
+                    if (result === 'gone') {
+                        this.#jobList.removeJob(jobId);
+                        return;
+                    }
                 }
                 this.#jobList.setJobFinished(jobId);
                 return;
@@ -163,6 +203,12 @@ export default class App {
             job.data.category = categoryName;
             this.#jobList.setJobFinished(jobId);
         } catch (error) {
+            if (error.code === 404) {
+                // the transaction was deleted in Firefly: there is nothing left to categorize
+                console.info(`Transaction ${job.data.transactionId} no longer exists: removing job ${jobId}`);
+                this.#jobList.removeJob(jobId);
+                return;
+            }
             console.error('Error updating job category:', error);
             throw error;
         }
@@ -226,6 +272,12 @@ export default class App {
                 this.#jobList.setJobHumanInput(jobId);
 
             } catch (err) {
+                if (err.code === 404) {
+                    // Firefly does not know the transaction any more (deleted): nothing to categorize
+                    console.info(`Transaction ${transactionId} no longer exists: removing job ${jobId}`);
+                    this.#jobList.removeJob(jobId);
+                    return;
+                }
                 // Log the detailed error and mark the job as failed
                 console.error('Job processing failed:', err);
                 this.#jobList.setJobFailed(jobId, err.message);

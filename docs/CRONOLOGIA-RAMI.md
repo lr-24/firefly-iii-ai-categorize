@@ -33,11 +33,12 @@ solo per i push su `main` e per i tag `v*`; rinominarlo spegnerebbe quel workflo
 | 07 | `07-2025-10-08-user-input-5` | `user-input-5` | 2025-10-08 | 7 su `06` |
 | 08 | `08-2026-10-10-do-not-change-applica-regole` | `fix-do-not-change-apply-rules` | 2026-10-10 | 2 su `07` (la correzione e questo documento) |
 | 09 | `09-2026-10-10-job-senza-doppioni-e-falliti` | (nome nuovo) | 2026-10-10 | 3 su `08` |
+| 10 | `10-2026-10-10-transazioni-eliminate-via-dai-lavori` | (nome nuovo) | 2026-10-10 | 2 su `09` |
 
 Parentela (verificata con `git merge-base`): `01` e `02` sono modifiche isolate fatte dal sito di GitHub, staccate da
 `main` prima di 34 suoi commit. `03` e `04` partono **entrambi da `main`** e non si contengono a vicenda: `04` è la linea
 di lavoro che prosegue (iniziata il pomeriggio del 2024-08-15, dopo `03`). Da `04` in poi la storia è lineare: `05` contiene
-`04`, `06` contiene `05`, e così via fino a `09`.
+`04`, `06` contiene `05`, e così via fino a `10`.
 
 ## Cosa cambia in ogni ramo
 
@@ -87,6 +88,15 @@ può sceglierci la categoria o premere «Do not change». (3) *Nuovo tentativo a
 per una transazione il cui lavoro è fallito, lo stesso lavoro torna in coda con i dati nuovi. (4) *Ripresa dopo un
 riavvio:* i lavori che erano in coda o in corso quando l'applicazione si è fermata tornano in coda (prima restavano
 bloccati per sempre). La logica della coda è ora in un solo punto (`#enqueue`). File: `src/App.js`, `src/JobList.js`.
+
+**10 – `transazioni-eliminate-via-dai-lavori`** (2026-10-10). Una transazione cancellata in Firefly sparisce anche dal
+categorizzatore. (1) Ogni 30 minuti (e 1 minuto dopo l'avvio) i lavori non conclusi vengono confrontati con Firefly
+(`GET /transactions/<id>`): se la transazione non esiste più (404) il lavoro viene tolto e l'interfaccia si aggiorna da
+sola; se Firefly non risponde o dà un altro errore non si toglie nulla. (2) Se la transazione sparisce mentre si lavora
+(404 nel salvataggio della categoria provvisoria, in **Confirm** o in **Do not change**) il lavoro viene tolto invece di
+restare «fallito» o di dare un errore. Variabili facoltative: `RECONCILE_INTERVAL_MS` (30 minuti),
+`RECONCILE_FIRST_DELAY_MS` (60 secondi). File: `src/App.js`, `src/JobList.js`, `src/FireflyService.js`
+(`transactionExists`; `applyRules` ora restituisce `'gone'` se la transazione non esiste).
 
 ## Come tornare ai nomi precedenti
 
