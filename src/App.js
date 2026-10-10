@@ -112,7 +112,15 @@ export default class App {
     
         try {
             if (categoryId === null) {
-                // If categoryId is null, it means "Do not change", just mark the job as finished
+                // "Do not change": the user accepts the category proposed by the AI (or leaves the
+                // transaction uncategorized if the AI could not classify it).
+                // The AI category was saved as a temporary one with apply_rules=false (see
+                // FireflyService.setTempCategory), so Firefly never ran its rules on it and the tags that
+                // depend on the category (e.g. macro-category tags) were never added.
+                // Save the same category again with apply_rules=true so those rules run now.
+                if (job.data.category) {
+                    await this.#firefly.applyRules(job.data.transactionId);
+                }
                 this.#jobList.setJobFinished(jobId);
                 return;
             }
