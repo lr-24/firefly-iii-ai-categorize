@@ -33,7 +33,7 @@ solo per i push su `main` e per i tag `v*`; rinominarlo spegnerebbe quel workflo
 | 07 | `07-2025-10-08-user-input-5` | `user-input-5` | 2025-10-08 | 7 su `06` |
 | 08 | `08-2026-10-10-do-not-change-applica-regole` | `fix-do-not-change-apply-rules` | 2026-10-10 | 2 su `07` (la correzione e questo documento) |
 | 09 | `09-2026-10-10-job-senza-doppioni-e-falliti` | (nome nuovo) | 2026-10-10 | 3 su `08` |
-| 10 | `10-2026-10-10-transazioni-eliminate-via-dai-lavori` | (nome nuovo) | 2026-10-10 | 2 su `09` |
+| 10 | `10-2026-10-10-transazioni-eliminate-via-dai-lavori` | (nome nuovo) | 2026-10-10 | 1 su `09` |
 
 Parentela (verificata con `git merge-base`): `01` e `02` sono modifiche isolate fatte dal sito di GitHub, staccate da
 `main` prima di 34 suoi commit. `03` e `04` partono **entrambi da `main`** e non si contengono a vicenda: `04` è la linea
