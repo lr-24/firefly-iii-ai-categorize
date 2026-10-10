@@ -49,6 +49,16 @@ export default class App {
         this.#jobList.on('job created', data => this.#io.emit('job created', data));
         this.#jobList.on('job updated', data => this.#io.emit('job updated', data));
 
+        // Jobs that were queued or in progress when the app stopped are not in the in-memory queue any more and would
+        // stay stuck forever (the UI offers nothing for them): put them back in the queue.
+        for (const job of Array.from(this.#jobList.getJobs().values())) {
+            if (job.status === 'queued' || job.status === 'in_progress') {
+                console.info(`Job ${job.id} was interrupted by a restart: queueing it again`);
+                this.#jobList.requeueJob(job.id);
+                this.#enqueue(job.id);
+            }
+        }
+
         this.#express.use(express.json());
 
         if (this.#ENABLE_UI) {
